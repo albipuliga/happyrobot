@@ -1,23 +1,26 @@
 :root {
   color-scheme: light;
-  --bg: #fafafa;
+  --bg: #f8f9fb;
   --surface: #fff;
-  --border: #e5e5e5;
-  --text: #171717;
-  --text-secondary: #737373;
-  --text-tertiary: #a3a3a3;
-  --accent: #2563eb;
+  --border: #e8eaed;
+  --border-subtle: #f0f1f3;
+  --text: #1a1d23;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --accent: #3b82f6;
   --accent-soft: #eff6ff;
-  --positive: #16a34a;
-  --positive-soft: #f0fdf4;
-  --pending: #ca8a04;
-  --pending-soft: #fefce8;
+  --positive: #059669;
+  --positive-soft: #ecfdf5;
+  --pending: #d97706;
+  --pending-soft: #fffbeb;
   --negative: #dc2626;
   --negative-soft: #fef2f2;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 * {
@@ -51,7 +54,7 @@ textarea {
 .dashboard-shell {
   width: min(1200px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 32px 0 48px;
+  padding: 36px 0 56px;
 }
 
 /* Header */
@@ -61,16 +64,17 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding-bottom: 24px;
+  padding-bottom: 28px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .topbar h1 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text);
 }
 
 .topbar-meta {
@@ -81,12 +85,12 @@ textarea {
 
 #last-updated {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
 .refresh-button {
-  padding: 8px 16px;
+  padding: 7px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -94,12 +98,14 @@ textarea {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease;
+  box-shadow: var(--shadow-xs);
+  transition: all 180ms ease;
 }
 
 .refresh-button:hover {
   background: var(--bg);
-  border-color: #d4d4d4;
+  border-color: #d1d5db;
+  box-shadow: var(--shadow-sm);
 }
 
 .refresh-button:focus-visible {
@@ -116,7 +122,7 @@ textarea {
 
 .dashboard-grid {
   display: grid;
-  gap: 32px;
+  gap: 36px;
 }
 
 .panel {
@@ -136,6 +142,7 @@ textarea {
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  color: var(--text);
 }
 
 .status-cluster {
@@ -145,10 +152,11 @@ textarea {
 }
 
 .status-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: var(--positive);
+  box-shadow: 0 0 0 3px var(--positive-soft);
 }
 
 .status-text {
@@ -163,16 +171,23 @@ textarea {
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .kpi-card {
   display: grid;
-  gap: 4px;
-  padding: 20px;
+  gap: 6px;
+  padding: 22px 24px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+
+.kpi-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .kpi-label {
@@ -180,15 +195,17 @@ textarea {
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .kpi-value {
   margin: 0;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.2;
+  color: var(--text);
 }
 
 /* Analytics */
@@ -196,30 +213,38 @@ textarea {
 .analytics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .metric-block {
-  padding: 20px;
+  padding: 22px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+
+.metric-block:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .metric-block h3 {
-  margin: 0 0 16px;
+  margin: 0 0 18px;
   font-size: 13px;
   font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .chart-list {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .chart-row {
   display: grid;
-  gap: 6px;
+  gap: 7px;
 }
 
 .chart-meta {
@@ -243,9 +268,10 @@ textarea {
 }
 
 .chart-track {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--bg);
+  height: 7px;
+  border-radius: 4px;
+  background: var(--border-subtle);
+  overflow: hidden;
 }
 
 .chart-fill {
@@ -253,7 +279,19 @@ textarea {
   border-radius: inherit;
   background: var(--accent);
   transform-origin: left center;
-  animation: grow 400ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: grow 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.chart-fill.tone-positive {
+  background: var(--positive);
+}
+
+.chart-fill.tone-negative {
+  background: var(--negative);
+}
+
+.chart-fill.tone-pending {
+  background: var(--pending);
 }
 
 /* Delta */
@@ -261,21 +299,21 @@ textarea {
 .delta-summary {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 10px;
 }
 
 .delta-chip {
   display: inline-flex;
   justify-self: start;
   border-radius: var(--radius-sm);
-  padding: 4px 10px;
+  padding: 5px 12px;
   font-size: 12px;
   font-weight: 600;
 }
 
 .delta-value {
   margin: 0;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -286,7 +324,6 @@ textarea {
   font-size: 13px;
   line-height: 1.5;
 }
-
 
 .delta-chip.positive,
 .pill.positive {
@@ -326,6 +363,7 @@ textarea {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .calls-table {
@@ -336,7 +374,7 @@ textarea {
 .calls-table th,
 .calls-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
   text-align: left;
   vertical-align: top;
 }
@@ -345,6 +383,7 @@ textarea {
   position: sticky;
   top: 0;
   background: var(--bg);
+  border-bottom-color: var(--border);
 }
 
 .calls-table tbody tr:last-child td {
@@ -352,7 +391,7 @@ textarea {
 }
 
 .calls-table tbody tr:not(.detail-row):hover {
-  background: var(--bg);
+  background: #f3f5f8;
 }
 
 .calls-table th {
@@ -365,7 +404,7 @@ textarea {
 
 .call-identity {
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 
 .call-id {
@@ -385,7 +424,7 @@ textarea {
   align-items: center;
   justify-content: center;
   padding: 4px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
   background: var(--bg);
   color: var(--text);
   font-size: 12px;
@@ -394,6 +433,7 @@ textarea {
 
 .call-row {
   cursor: pointer;
+  transition: background-color 150ms ease;
 }
 
 .call-row:focus-visible {
@@ -412,22 +452,24 @@ textarea {
 .detail-card {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
-  gap: 12px;
+  gap: 14px;
   padding: 16px;
   background: var(--bg);
 }
 
 .detail-block {
-  padding: 16px;
+  padding: 18px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
+  box-shadow: var(--shadow-xs);
 }
 
 .detail-block h3 {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   font-size: 13px;
   font-weight: 600;
+  color: var(--text);
 }
 
 .detail-block p,
@@ -435,13 +477,13 @@ textarea {
   margin: 0;
   font-size: 13px;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .detail-grid dt {
@@ -473,7 +515,7 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 12px 16px;
+  padding: 14px 16px;
 }
 
 .pagination:empty {
@@ -497,12 +539,14 @@ textarea {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease;
+  box-shadow: var(--shadow-xs);
+  transition: all 180ms ease;
 }
 
 .pagination-button:hover:not(:disabled) {
   background: var(--bg);
-  border-color: #d4d4d4;
+  border-color: #d1d5db;
+  box-shadow: var(--shadow-sm);
 }
 
 .pagination-button:focus-visible {
@@ -520,7 +564,7 @@ textarea {
 @keyframes grow {
   from {
     transform: scaleX(0);
-    opacity: 0.5;
+    opacity: 0.4;
   }
   to {
     transform: scaleX(1);

@@ -122,6 +122,7 @@ function renderBars(container, counts) {
     .sort((a, b) => b[1] - a[1])
     .map(([label, value]) => {
       const width = Math.max((value / max) * 100, value > 0 ? 8 : 0);
+      const tone = statusTone(label);
       return `
         <div class="chart-row">
           <div class="chart-meta">
@@ -129,7 +130,7 @@ function renderBars(container, counts) {
             <span class="chart-value">${escapeHtml(formatNumber(value))}</span>
           </div>
           <div class="chart-track" aria-hidden="true">
-            <div class="chart-fill" style="width:${width}%"></div>
+            <div class="chart-fill tone-${tone}" style="width:${width}%"></div>
           </div>
         </div>
       `;
