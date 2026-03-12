@@ -1,7 +1,25 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "happyrobot"
 version = "0.1.0"
 description = "HappyRobot FDE Technical Challenge"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115.12",
+    "httpx>=0.28.1",
+    "pydantic-settings>=2.8.1",
+    "sqlalchemy>=2.0.39",
+    "uvicorn[standard]>=0.34.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
