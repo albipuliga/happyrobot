@@ -51,6 +51,7 @@ docker run --rm -p 8000:8000 --env-file .env happyrobot
 ```
 
 This starts the API on `http://localhost:8000`.
+The image also declares a Docker `HEALTHCHECK` that probes `GET /health`.
 
 ## Railway
 
@@ -63,6 +64,8 @@ Set these variables in Railway before deploying:
 - `FMCSA_BASE_URL`: `https://mobile.fmcsa.dot.gov/qc/services`
 - `DATABASE_URL`: `sqlite:///./happyrobot.db` for the challenge unless you switch databases
 
+Railway deploy health checks are configured in [`railway.toml`](/Users/albertopuliga/Desktop/Coding/happyrobot/railway.toml) to probe `GET /health` with a 30 second timeout.
+
 ## API Endpoints
 
 - `POST /api/v1/carriers/verify`
@@ -70,7 +73,7 @@ Set these variables in Railway before deploying:
 - `POST /api/v1/loads/negotiate`
 - `POST /api/v1/calls/complete`
 - `GET /api/v1/metrics/summary`
-- `GET /healthz`
+- `GET /health`
 
 ## Test
 

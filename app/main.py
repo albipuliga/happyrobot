@@ -22,7 +22,7 @@ app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.include_router(api_router)
 
 
-@app.get("/healthz", tags=["health"])
+@app.get("/health", tags=["health"])
 def healthcheck() -> dict[str, str]:
     with Session(get_engine(settings.database_url)) as session:
         session.execute(text("SELECT 1"))
