@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acme Logistics - Dashboard Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, system-ui, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background:
+          radial-gradient(circle at top, rgba(14, 165, 233, 0.18), transparent 32%),
+          linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+        color: #0f172a;
+      }
+
+      .login-card {
+        width: min(100%, 420px);
+        padding: 32px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        box-shadow: 0 24px 80px rgba(15, 23, 42, 0.12);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.8rem;
+      }
+
+      p {
+        margin: 0;
+        line-height: 1.5;
+        color: #475569;
+      }
+
+      form {
+        margin-top: 24px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #1e293b;
+      }
+
+      input {
+        width: 100%;
+        padding: 14px 16px;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        font: inherit;
+      }
+
+      input:focus {
+        outline: 2px solid rgba(37, 99, 235, 0.2);
+        border-color: #2563eb;
+      }
+
+      button {
+        width: 100%;
+        margin-top: 16px;
+        padding: 14px 16px;
+        border: 0;
+        border-radius: 12px;
+        background: #0f172a;
+        color: #ffffff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.7;
+      }
+
+      .error {
+        min-height: 24px;
+        margin-top: 14px;
+        color: #b91c1c;
+      }
+
+      .meta {
+        margin-top: 18px;
+        font-size: 0.9rem;
+        color: #64748b;
+      }
+    </style>
+    <script src="/dashboard/assets/dashboard-login.js" defer></script>
+  </head>
+  <body>
+    <section class="login-card" aria-labelledby="dashboard-login-heading">
+      <h1 id="dashboard-login-heading">Dashboard Access</h1>
+      <p>Enter the dashboard password to view Acme Logistics call metrics.</p>
+      <form id="dashboard-login-form">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+        <button id="submit-button" type="submit">Login</button>
+        <p id="error-message" class="error" role="alert" aria-live="polite"></p>
+      </form>
+    </section>
+  </body>
+</html>

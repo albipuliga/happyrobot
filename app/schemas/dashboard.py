@@ -34,3 +34,11 @@ class DashboardDataResponse(BaseModel):
     load_status_counts: dict[str, int]
     recent_calls: list[DashboardRecentCall]
     last_updated_at: datetime
+
+
+class DashboardLoginRequest(BaseModel):
+    password: str
+
+
+class DashboardLoginResponse(BaseModel):
+    success: bool

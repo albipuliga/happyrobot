@@ -35,6 +35,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 Runtime settings are centralized in [`.env.example`](/Users/albertopuliga/Desktop/Coding/happyrobot/.env.example), including the database URL, FMCSA settings, request timeout, and negotiation round limit.
 
 Set your real `APP_API_KEY` value in local `.env` and in Railway service variables.
+The dashboard password reuses that same `APP_API_KEY` value and stores access in a signed browser session cookie.
 
 ## Docker
 
@@ -58,6 +59,8 @@ The image also declares a Docker `HEALTHCHECK` that probes `GET /health`.
 Set these variables in Railway before deploying:
 
 - `APP_API_KEY`: generated secret used for the `X-API-Key` header
+- `DASHBOARD_SESSION_MAX_AGE_SECONDS`: how long the dashboard browser session remains valid
+- `DASHBOARD_SESSION_COOKIE_NAME`: signed cookie name used for dashboard access
 - `REQUEST_TIMEOUT_SECONDS`: FMCSA request timeout
 - `NEGOTIATION_MAX_COUNTER_ROUNDS`: max number of counter-offers before rejection
 - `FMCSA_API_KEY`: FMCSA API key

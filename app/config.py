@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     )
     request_timeout_seconds: float = Field(default=10.0, alias="REQUEST_TIMEOUT_SECONDS")
     negotiation_max_counter_rounds: int = Field(default=3, alias="NEGOTIATION_MAX_COUNTER_ROUNDS", ge=1)
+    dashboard_session_max_age_seconds: int = Field(
+        default=14400,
+        alias="DASHBOARD_SESSION_MAX_AGE_SECONDS",
+        ge=300,
+    )
+    dashboard_session_cookie_name: str = Field(
+        default="happyrobot_dashboard_session",
+        alias="DASHBOARD_SESSION_COOKIE_NAME",
+    )
 
 
 @lru_cache

@@ -287,6 +287,11 @@ async function fetchDashboardData({ manual = false } = {}) {
       },
     });
 
+    if (response.status === 401) {
+      window.location.assign("/dashboard");
+      return;
+    }
+
     if (!response.ok) {
       throw new Error(`Dashboard request failed with status ${response.status}`);
     }

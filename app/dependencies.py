@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, Security, status
+from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security.api_key import APIKeyHeader
 from sqlalchemy.orm import Session
 
@@ -27,6 +27,14 @@ def require_api_key(
             detail="Invalid or missing API key.",
         )
     return provided_key
+
+
+def require_dashboard_session(request: Request) -> None:
+    if request.session.get("dashboard_authenticated") is not True:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Dashboard authentication required.",
+        )
 
 
 def get_fmcsa_client(settings: Settings = Depends(get_settings)) -> FMCSAClient:

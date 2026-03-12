@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.routes import router as api_router
 from app.config import get_settings
@@ -21,6 +22,14 @@ async def lifespan(_: FastAPI):
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.app_api_key,
+    session_cookie=settings.dashboard_session_cookie_name,
+    max_age=settings.dashboard_session_max_age_seconds,
+    same_site="lax",
+    https_only=False,
+)
 app.mount(
     "/dashboard/assets",
     StaticFiles(directory=Path(__file__).resolve().parent / "static" / "dashboard" / "assets"),

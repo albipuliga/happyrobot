@@ -67,14 +67,40 @@ def test_dashboard_page_returns_html_without_api_key(client):
 
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "Carrier Call Metrics" in response.text
+    assert "Dashboard Access" in response.text
 
 
-def test_dashboard_data_returns_empty_recent_calls_without_api_key(client):
+def test_dashboard_data_requires_dashboard_login(client):
     response = client.get("/dashboard/data")
 
-    assert response.status_code == 200
-    body = response.json()
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Dashboard authentication required."
+
+
+def test_dashboard_login_rejects_wrong_password(client):
+    response = client.post("/dashboard/login", json={"password": "wrong-password"})
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid password."
+
+    page_response = client.get("/dashboard")
+    assert page_response.status_code == 200
+    assert "Dashboard Access" in page_response.text
+
+
+def test_dashboard_login_unlocks_page_and_data(client):
+    login_response = client.post("/dashboard/login", json={"password": "test-api-key"})
+
+    assert login_response.status_code == 200
+    assert login_response.json() == {"success": True}
+
+    page_response = client.get("/dashboard")
+    assert page_response.status_code == 200
+    assert '<div class="dashboard-shell">' in page_response.text
+
+    data_response = client.get("/dashboard/data")
+    assert data_response.status_code == 200
+    body = data_response.json()
     assert body["summary"]["total_calls"] == 0
     assert body["summary"]["agreements"] == 0
     assert body["recent_calls"] == []
@@ -226,6 +252,9 @@ def test_complete_call_marks_load_pending_transfer_and_updates_metrics(client):
 def test_dashboard_data_includes_recent_calls_sorted_by_recency(client):
     from app.config import get_settings
     from app.db.session import get_session_factory
+
+    login_response = client.post("/dashboard/login", json={"password": "test-api-key"})
+    assert login_response.status_code == 200
 
     verify_client = FakeFMCSAClient()
     client.app.dependency_overrides[get_fmcsa_client] = lambda: verify_client

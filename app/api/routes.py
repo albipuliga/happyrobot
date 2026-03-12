@@ -1,12 +1,13 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_db_session, get_fmcsa_client, require_api_key
+from app.config import Settings, get_settings
+from app.dependencies import get_db_session, get_fmcsa_client, require_api_key, require_dashboard_session
 from app.schemas.calls import CallCompleteRequest, CallCompleteResponse
-from app.schemas.dashboard import DashboardDataResponse
+from app.schemas.dashboard import DashboardDataResponse, DashboardLoginRequest, DashboardLoginResponse
 from app.schemas.carriers import VerifyCarrierRequest, VerifyCarrierResponse
 from app.schemas.loads import LoadSearchRequest, LoadSearchResponse
 from app.schemas.metrics import MetricsSummaryResponse
@@ -21,6 +22,7 @@ from app.services.negotiation import negotiate_rate
 router = APIRouter()
 api_router = APIRouter(prefix="/api/v1", dependencies=[Depends(require_api_key)])
 _DASHBOARD_INDEX = Path(__file__).resolve().parent.parent / "static" / "dashboard" / "index.html"
+_DASHBOARD_LOGIN_INDEX = Path(__file__).resolve().parent.parent / "static" / "dashboard" / "login.html"
 
 
 @api_router.post("/carriers/verify", response_model=VerifyCarrierResponse, tags=["carriers"])
@@ -63,14 +65,35 @@ def metrics_summary(db: Session = Depends(get_db_session)) -> MetricsSummaryResp
 
 
 @router.get("/dashboard", include_in_schema=False)
-def dashboard_page() -> FileResponse:
+def dashboard_page(request: Request) -> FileResponse:
+    if request.session.get("dashboard_authenticated") is not True:
+        return FileResponse(_DASHBOARD_LOGIN_INDEX)
     return FileResponse(_DASHBOARD_INDEX)
+
+
+@router.post("/dashboard/login", response_model=DashboardLoginResponse, include_in_schema=False)
+def dashboard_login(
+    payload: DashboardLoginRequest,
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> DashboardLoginResponse:
+    if payload.password != settings.app_api_key:
+        request.session.clear()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid password.",
+        )
+
+    request.session.clear()
+    request.session["dashboard_authenticated"] = True
+    return DashboardLoginResponse(success=True)
 
 
 @router.get("/dashboard/data", response_model=DashboardDataResponse, tags=["dashboard"])
 def dashboard_data(
     limit: int = Query(default=25, ge=1, le=100),
     db: Session = Depends(get_db_session),
+    _: None = Depends(require_dashboard_session),
 ) -> DashboardDataResponse:
     return build_dashboard_data(db=db, limit=limit)
 
