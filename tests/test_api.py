@@ -51,6 +51,20 @@ def _auth_headers():
     return {"X-API-Key": "test-api-key"}
 
 
+def test_normalize_postgres_database_urls():
+    from app.db.session import normalize_database_url
+
+    assert normalize_database_url("postgres://user:pass@localhost:5432/happyrobot") == (
+        "postgresql+psycopg://user:pass@localhost:5432/happyrobot"
+    )
+    assert normalize_database_url("postgresql://user:pass@localhost:5432/happyrobot") == (
+        "postgresql+psycopg://user:pass@localhost:5432/happyrobot"
+    )
+    assert normalize_database_url("postgresql+psycopg://user:pass@localhost:5432/happyrobot") == (
+        "postgresql+psycopg://user:pass@localhost:5432/happyrobot"
+    )
+
+
 def test_healthcheck_reports_database(client):
     response = client.get("/health")
     assert response.status_code == 200

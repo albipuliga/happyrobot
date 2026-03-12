@@ -13,10 +13,22 @@ def _connect_args(database_url: str) -> dict[str, object]:
     return {}
 
 
+def normalize_database_url(database_url: str) -> str:
+    if database_url.startswith("postgres://"):
+        return database_url.replace("postgres://", "postgresql+psycopg://", 1)
+    if database_url.startswith("postgresql://") and "+psycopg" not in database_url.split("://", 1)[0]:
+        return database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return database_url
+
+
 @lru_cache
 def get_engine(database_url: str | None = None):
-    url = database_url or get_settings().database_url
-    return create_engine(url, connect_args=_connect_args(url))
+    raw_url = database_url or get_settings().database_url
+    url = normalize_database_url(raw_url)
+    engine_kwargs: dict[str, object] = {"connect_args": _connect_args(url)}
+    if not url.startswith("sqlite"):
+        engine_kwargs["pool_pre_ping"] = True
+    return create_engine(url, **engine_kwargs)
 
 
 @lru_cache

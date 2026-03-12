@@ -6,7 +6,8 @@ Backend API for the HappyRobot FDE take-home challenge. It verifies inbound carr
 
 - FastAPI
 - SQLAlchemy 2.0
-- SQLite
+- PostgreSQL on Railway
+- SQLite for local tests/dev fallback
 - httpx
 - Docker
 
@@ -23,6 +24,7 @@ Backend API for the HappyRobot FDE take-home challenge. It verifies inbound carr
    ```
 
 The database is created automatically on startup and seeded from [`data/loads.json`](/Users/albertopuliga/Desktop/Coding/happyrobot/data/loads.json).
+In Railway, the app should point at a managed PostgreSQL service. SQLite remains useful locally for quick runs and tests.
 
 ## Configuration
 
@@ -59,13 +61,11 @@ The image also declares a Docker `HEALTHCHECK` that probes `GET /health`.
 Set these variables in Railway before deploying:
 
 - `APP_API_KEY`: generated secret used for the `X-API-Key` header
-- `DASHBOARD_SESSION_MAX_AGE_SECONDS`: how long the dashboard browser session remains valid
-- `DASHBOARD_SESSION_COOKIE_NAME`: signed cookie name used for dashboard access
 - `REQUEST_TIMEOUT_SECONDS`: FMCSA request timeout
 - `NEGOTIATION_MAX_COUNTER_ROUNDS`: max number of counter-offers before rejection
 - `FMCSA_API_KEY`: FMCSA API key
 - `FMCSA_BASE_URL`: `https://mobile.fmcsa.dot.gov/qc/services`
-- `DATABASE_URL`: `sqlite:///./happyrobot.db` for the challenge unless you switch databases
+- `DATABASE_URL`: set this on `happyrobot-app` to `${{Postgres.DATABASE_URL}}` after adding a Railway Postgres service named `Postgres`
 
 Railway deploy health checks are configured in [`railway.toml`](/Users/albertopuliga/Desktop/Coding/happyrobot/railway.toml) to probe `GET /health` with a 30 second timeout.
 
