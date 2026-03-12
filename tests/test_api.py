@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import httpx
 
 from app.dependencies import get_fmcsa_client
@@ -58,6 +60,26 @@ def test_healthcheck_reports_database(client):
 def test_requires_api_key(client):
     response = client.get("/api/v1/metrics/summary")
     assert response.status_code == 401
+
+
+def test_dashboard_page_returns_html_without_api_key(client):
+    response = client.get("/dashboard")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Carrier Call Metrics" in response.text
+
+
+def test_dashboard_data_returns_empty_recent_calls_without_api_key(client):
+    response = client.get("/dashboard/data")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["summary"]["total_calls"] == 0
+    assert body["summary"]["agreements"] == 0
+    assert body["recent_calls"] == []
+    assert body["load_status_counts"]["available"] > 0
+    assert body["last_updated_at"] is not None
 
 
 def test_verify_carrier_success(client):
@@ -199,6 +221,104 @@ def test_complete_call_marks_load_pending_transfer_and_updates_metrics(client):
     assert metrics["transfers_ready"] == 1
     assert metrics["outcome_counts"]["agreed"] == 1
     assert metrics["sentiment_counts"]["positive"] == 1
+
+
+def test_dashboard_data_includes_recent_calls_sorted_by_recency(client):
+    from app.config import get_settings
+    from app.db.session import get_session_factory
+
+    verify_client = FakeFMCSAClient()
+    client.app.dependency_overrides[get_fmcsa_client] = lambda: verify_client
+
+    verify_response = client.post(
+        "/api/v1/carriers/verify",
+        headers=_auth_headers(),
+        json={"external_call_id": "call-dashboard-1", "mc_number": "10101"},
+    )
+    assert verify_response.status_code == 200
+
+    first_counter = client.post(
+        "/api/v1/loads/negotiate",
+        headers=_auth_headers(),
+        json={"external_call_id": "call-dashboard-1", "load_id": "ACM-1001", "carrier_offer": 2700},
+    )
+    assert first_counter.status_code == 200
+
+    second_counter = client.post(
+        "/api/v1/loads/negotiate",
+        headers=_auth_headers(),
+        json={"external_call_id": "call-dashboard-1", "load_id": "ACM-1001", "carrier_offer": 2425},
+    )
+    assert second_counter.status_code == 200
+
+    complete_first = client.post(
+        "/api/v1/calls/complete",
+        headers=_auth_headers(),
+        json={
+            "external_call_id": "call-dashboard-1",
+            "mc_number": "10101",
+            "load_id": "ACM-1001",
+            "final_rate": 2450,
+            "outcome": "agreed",
+            "sentiment": "positive",
+            "transcript_excerpt": "Carrier accepted after the second counter.",
+            "extracted_fields": {"dispatcher": "Mila"},
+        },
+    )
+    assert complete_first.status_code == 200
+
+    complete_second = client.post(
+        "/api/v1/calls/complete",
+        headers=_auth_headers(),
+        json={
+            "external_call_id": "call-dashboard-2",
+            "mc_number": "",
+            "load_id": "",
+            "final_rate": "",
+            "outcome": "rejected",
+            "sentiment": "negative",
+            "transcript_excerpt": "",
+            "extracted_fields": {},
+        },
+    )
+    assert complete_second.status_code == 200
+
+    session_factory = get_session_factory(get_settings().database_url)
+    with session_factory() as db:
+        older_call = db.query(CallSession).filter(CallSession.external_call_id == "call-dashboard-1").one()
+        newer_call = db.query(CallSession).filter(CallSession.external_call_id == "call-dashboard-2").one()
+        older_call.updated_at = datetime.utcnow() - timedelta(minutes=10)
+        newer_call.updated_at = datetime.utcnow()
+        db.add_all([older_call, newer_call])
+        db.commit()
+
+    response = client.get("/dashboard/data?limit=2")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["summary"]["total_calls"] == 2
+    assert body["summary"]["agreements"] == 1
+    assert body["summary"]["transfers_ready"] == 1
+    assert body["summary"]["outcome_counts"]["agreed"] == 1
+    assert body["summary"]["outcome_counts"]["rejected"] == 1
+    assert body["summary"]["sentiment_counts"]["negative"] == 1
+    assert body["load_status_counts"]["pending_transfer"] == 1
+
+    recent_calls = body["recent_calls"]
+    assert [call["external_call_id"] for call in recent_calls] == ["call-dashboard-2", "call-dashboard-1"]
+
+    latest_call = recent_calls[0]
+    assert latest_call["selected_load"] is None
+    assert latest_call["agreed_rate"] is None
+    assert latest_call["transcript_excerpt"] is None
+    assert latest_call["negotiation_rounds"] == 0
+
+    earlier_call = recent_calls[1]
+    assert earlier_call["selected_load"]["load_id"] == "ACM-1001"
+    assert earlier_call["selected_load"]["status"] == "pending_transfer"
+    assert earlier_call["agreed_rate"] == 2450
+    assert earlier_call["negotiation_rounds"] == 2
+    assert earlier_call["transcript_excerpt"] == "Carrier accepted after the second counter."
 
 
 def test_fmcsa_timeout_uses_cached_result(client):

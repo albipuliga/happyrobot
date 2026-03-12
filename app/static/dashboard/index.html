@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acme Logistics — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/dashboard/assets/dashboard.css" />
+    <script src="/dashboard/assets/dashboard.js" defer></script>
+  </head>
+  <body>
+    <div class="dashboard-shell">
+      <header class="topbar">
+        <h1>Dashboard</h1>
+        <div class="topbar-meta">
+          <span class="status-cluster">
+            <span class="status-dot" aria-hidden="true"></span>
+            <p id="fetch-status" class="status-text" aria-live="polite">Loading...</p>
+          </span>
+          <p id="last-updated">—</p>
+          <button id="refresh-button" class="refresh-button" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <main class="dashboard-grid">
+        <section class="panel panel-kpis" aria-labelledby="overview-heading">
+          <div class="panel-header">
+            <h2 id="overview-heading">Overview</h2>
+          </div>
+          <div id="kpi-grid" class="kpi-grid"></div>
+        </section>
+
+        <section class="panel panel-distribution" aria-labelledby="analytics-heading">
+          <div class="panel-header">
+            <h2 id="analytics-heading">Analytics</h2>
+          </div>
+          <div class="analytics-grid">
+            <article class="metric-block">
+              <h3>Outcomes</h3>
+              <div id="outcome-chart" class="chart-list"></div>
+            </article>
+            <article class="metric-block">
+              <h3>Sentiment</h3>
+              <div id="sentiment-chart" class="chart-list"></div>
+            </article>
+            <article class="metric-block">
+              <h3>Load status</h3>
+              <div id="load-status-chart" class="chart-list"></div>
+            </article>
+            <article class="metric-block delta-block">
+              <h3>Rate delta</h3>
+              <div id="delta-summary" class="delta-summary"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel panel-calls" aria-labelledby="calls-heading">
+          <div class="panel-header">
+            <h2 id="calls-heading">Recent Calls</h2>
+          </div>
+          <div id="stale-warning" class="stale-warning" hidden></div>
+          <div class="table-wrap">
+            <table class="calls-table">
+              <thead>
+                <tr>
+                  <th scope="col">Call</th>
+                  <th scope="col">Verification</th>
+                  <th scope="col">Outcome</th>
+                  <th scope="col">Sentiment</th>
+                  <th scope="col">Rate</th>
+                  <th scope="col">Load</th>
+                  <th scope="col">Updated</th>
+                </tr>
+              </thead>
+              <tbody id="calls-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

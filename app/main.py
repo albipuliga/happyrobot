@@ -1,6 +1,8 @@
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -19,6 +21,11 @@ async def lifespan(_: FastAPI):
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app.mount(
+    "/dashboard/assets",
+    StaticFiles(directory=Path(__file__).resolve().parent / "static" / "dashboard" / "assets"),
+    name="dashboard-assets",
+)
 app.include_router(api_router)
 
 

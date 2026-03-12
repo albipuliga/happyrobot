@@ -1,0 +1,331 @@
+const REFRESH_INTERVAL_MS = 30000;
+
+const state = {
+  timerId: null,
+  isFetching: false,
+  data: null,
+};
+
+const elements = {
+  kpiGrid: document.getElementById("kpi-grid"),
+  outcomeChart: document.getElementById("outcome-chart"),
+  sentimentChart: document.getElementById("sentiment-chart"),
+  loadStatusChart: document.getElementById("load-status-chart"),
+  deltaSummary: document.getElementById("delta-summary"),
+  callsTableBody: document.getElementById("calls-table-body"),
+  lastUpdated: document.getElementById("last-updated"),
+  fetchStatus: document.getElementById("fetch-status"),
+  staleWarning: document.getElementById("stale-warning"),
+  refreshButton: document.getElementById("refresh-button"),
+};
+
+function formatNumber(value) {
+  return new Intl.NumberFormat("en-US").format(value ?? 0);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatCurrency(value) {
+  if (value === null || value === undefined) {
+    return "N/A";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatPercent(value) {
+  return `${Number(value ?? 0).toFixed(2)}%`;
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "Not completed";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function sentenceCase(value) {
+  if (!value) {
+    return "Unknown";
+  }
+
+  return String(value)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function statusTone(value) {
+  const normalized = String(value || "").toLowerCase();
+
+  if (["agreed", "accepted", "positive", "verified", "pending_transfer", "true"].includes(normalized)) {
+    return "positive";
+  }
+
+  if (["rejected", "negative", "failed", "false"].includes(normalized)) {
+    return "negative";
+  }
+
+  return "pending";
+}
+
+function renderKpis(summary) {
+  const cards = [
+    { label: "Total calls", value: formatNumber(summary.total_calls) },
+    { label: "Agreements", value: formatNumber(summary.agreements) },
+    {
+      label: "Net rate delta",
+      value: formatCurrency(summary.total_agreed_vs_listed_delta),
+    },
+  ];
+
+  elements.kpiGrid.innerHTML = cards
+    .map(
+      (card) => `
+        <article class="kpi-card">
+          <p class="kpi-label">${escapeHtml(card.label)}</p>
+          <p class="kpi-value">${escapeHtml(card.value)}</p>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderBars(container, counts) {
+  const entries = Object.entries(counts || {});
+
+  if (entries.length === 0) {
+    container.innerHTML = '<p class="empty-state">No data recorded yet.</p>';
+    return;
+  }
+
+  const max = Math.max(...entries.map(([, value]) => value), 1);
+
+  container.innerHTML = entries
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, value]) => {
+      const width = Math.max((value / max) * 100, value > 0 ? 8 : 0);
+      return `
+        <div class="chart-row">
+          <div class="chart-meta">
+            <span class="chart-label">${escapeHtml(sentenceCase(label))}</span>
+            <span class="chart-value">${escapeHtml(formatNumber(value))}</span>
+          </div>
+          <div class="chart-track" aria-hidden="true">
+            <div class="chart-fill" style="width:${width}%"></div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderDelta(summary) {
+  const average = summary.average_agreed_vs_listed_delta;
+  const total = summary.total_agreed_vs_listed_delta;
+
+  let tone = "pending";
+  let label = "At listed rates overall";
+
+  if (total > 0) {
+    tone = "negative";
+    label = "Paying above listed rates overall";
+  } else if (total < 0) {
+    tone = "positive";
+    label = "Closing below listed rates overall";
+  }
+
+  elements.deltaSummary.innerHTML = `
+    <span class="delta-chip ${tone}">${escapeHtml(label)}</span>
+    <p class="delta-value">${escapeHtml(formatCurrency(total))}</p>
+    <p class="delta-copy">Average negotiated delta: ${escapeHtml(formatCurrency(average))}</p>
+  `;
+}
+
+function renderCalls(recentCalls) {
+  if (!recentCalls || recentCalls.length === 0) {
+    elements.callsTableBody.innerHTML = `
+      <tr>
+        <td class="empty-state" colspan="7">No calls have been recorded yet. Complete a carrier flow to populate this table.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  elements.callsTableBody.innerHTML = recentCalls
+    .map((call, index) => {
+      const verificationLabel =
+        call.verification_passed === null ? "Pending" : call.verification_passed ? "Verified" : "Failed";
+      const rate = call.agreed_rate === null ? "N/A" : formatCurrency(call.agreed_rate);
+      const loadSummary = call.selected_load
+        ? `${call.selected_load.load_id} · ${call.selected_load.origin} to ${call.selected_load.destination}`
+        : "No load selected";
+      const detailRowId = `detail-row-${index}`;
+      const detailButtonId = `detail-button-${index}`;
+
+      return `
+        <tr class="call-row" aria-expanded="false" data-detail="${detailRowId}" role="button" tabindex="0">
+          <td>
+            <div class="call-identity">
+              <span class="call-id">${escapeHtml(call.external_call_id)}</span>
+              <span class="call-subtext">${escapeHtml(`${call.mc_number || "No MC"} · ${call.negotiation_rounds} negotiation rounds`)}</span>
+            </div>
+          </td>
+          <td><span class="pill ${statusTone(String(call.verification_passed))}">${verificationLabel}</span></td>
+          <td><span class="pill ${statusTone(call.outcome)}">${escapeHtml(sentenceCase(call.outcome))}</span></td>
+          <td><span class="pill ${statusTone(call.sentiment)}">${escapeHtml(sentenceCase(call.sentiment))}</span></td>
+          <td>${escapeHtml(rate)}</td>
+          <td>${escapeHtml(loadSummary)}</td>
+          <td>${escapeHtml(formatDateTime(call.ended_at || call.started_at))}</td>
+        </tr>
+        <tr id="${detailRowId}" class="detail-row" hidden>
+          <td class="detail-cell" colspan="7">
+            <div class="detail-card">
+              <section class="detail-block">
+                <h3>Transcript excerpt</h3>
+                <p>${escapeHtml(call.transcript_excerpt || "No transcript excerpt captured for this session.")}</p>
+              </section>
+              <section class="detail-block">
+                <h3>Load snapshot</h3>
+                ${
+                  call.selected_load
+                    ? `
+                      <dl class="detail-grid">
+                        <div>
+                          <dt>Load ID</dt>
+                          <dd>${escapeHtml(call.selected_load.load_id)}</dd>
+                        </div>
+                        <div>
+                          <dt>Equipment</dt>
+                          <dd>${escapeHtml(call.selected_load.equipment_type)}</dd>
+                        </div>
+                        <div>
+                          <dt>Route</dt>
+                          <dd>${escapeHtml(`${call.selected_load.origin} to ${call.selected_load.destination}`)}</dd>
+                        </div>
+                        <div>
+                          <dt>Listed rate</dt>
+                          <dd>${escapeHtml(formatCurrency(call.selected_load.loadboard_rate))}</dd>
+                        </div>
+                        <div>
+                          <dt>Status</dt>
+                          <dd>${escapeHtml(sentenceCase(call.selected_load.status))}</dd>
+                        </div>
+                        <div>
+                          <dt>Matched loads</dt>
+                          <dd>${escapeHtml(formatNumber(call.matched_loads_count))}</dd>
+                        </div>
+                      </dl>
+                    `
+                    : '<p class="muted-text">This call did not end with a selected load.</p>'
+                }
+              </section>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  elements.callsTableBody.querySelectorAll(".call-row").forEach((row) => {
+    function toggle() {
+      const detailRow = document.getElementById(row.dataset.detail);
+      const isExpanded = row.getAttribute("aria-expanded") === "true";
+      row.setAttribute("aria-expanded", String(!isExpanded));
+      detailRow.hidden = isExpanded;
+    }
+
+    row.addEventListener("click", toggle);
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    });
+  });
+}
+
+function renderDashboard(data) {
+  renderKpis(data.summary);
+  renderBars(elements.outcomeChart, data.summary.outcome_counts);
+  renderBars(elements.sentimentChart, data.summary.sentiment_counts);
+  renderBars(elements.loadStatusChart, data.load_status_counts);
+  renderDelta(data.summary);
+  renderCalls(data.recent_calls);
+
+  elements.lastUpdated.textContent = formatDateTime(data.last_updated_at);
+  elements.fetchStatus.textContent = "Live";
+}
+
+async function fetchDashboardData({ manual = false } = {}) {
+  if (state.isFetching) {
+    return;
+  }
+
+  state.isFetching = true;
+  elements.refreshButton.disabled = true;
+  elements.fetchStatus.textContent = "Refreshing...";
+
+  try {
+    const response = await fetch("/dashboard/data?limit=25", {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Dashboard request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    state.data = data;
+    renderDashboard(data);
+    elements.staleWarning.hidden = true;
+    elements.staleWarning.textContent = "";
+  } catch (error) {
+    console.error(error);
+    elements.fetchStatus.textContent = "Offline";
+
+    if (state.data) {
+      elements.staleWarning.hidden = false;
+      elements.staleWarning.textContent = "Latest refresh failed. The dashboard is still showing the most recent successful data.";
+    } else {
+      elements.staleWarning.hidden = false;
+      elements.staleWarning.textContent = "Unable to load dashboard data yet. Check the API and try again.";
+    }
+  } finally {
+    state.isFetching = false;
+    elements.refreshButton.disabled = false;
+  }
+}
+
+function startAutoRefresh() {
+  if (state.timerId !== null) {
+    clearInterval(state.timerId);
+  }
+
+  state.timerId = window.setInterval(() => {
+    fetchDashboardData();
+  }, REFRESH_INTERVAL_MS);
+}
+
+elements.refreshButton.addEventListener("click", () => {
+  fetchDashboardData({ manual: true });
+});
+
+fetchDashboardData();
+startAutoRefresh();
