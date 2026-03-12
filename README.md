@@ -16,7 +16,7 @@ Backend API for the HappyRobot FDE take-home challenge. It verifies inbound carr
    ```bash
    uv sync --dev
    ```
-2. Copy `.env.example` to `.env` and set `APP_API_KEY` and `FMCSA_API_KEY`.
+2. Copy `.env.example` to `.env` and adjust the values for your environment.
 3. Run the API:
    ```bash
    uv run uvicorn app.main:app --reload
@@ -32,7 +32,9 @@ All `/api/v1/*` endpoints require an `X-API-Key` header. Generate a strong value
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-Set that value in your local `.env` file and in Railway service variables.
+Runtime settings are centralized in [`.env.example`](/Users/albertopuliga/Desktop/Coding/happyrobot/.env.example), including the database URL, FMCSA settings, request timeout, and negotiation round limit.
+
+Set your real `APP_API_KEY` value in local `.env` and in Railway service variables.
 
 ## Docker
 
@@ -55,6 +57,8 @@ This starts the API on `http://localhost:8000`.
 Set these variables in Railway before deploying:
 
 - `APP_API_KEY`: generated secret used for the `X-API-Key` header
+- `REQUEST_TIMEOUT_SECONDS`: FMCSA request timeout
+- `NEGOTIATION_MAX_COUNTER_ROUNDS`: max number of counter-offers before rejection
 - `FMCSA_API_KEY`: FMCSA API key
 - `FMCSA_BASE_URL`: `https://mobile.fmcsa.dot.gov/qc/services`
 - `DATABASE_URL`: `sqlite:///./happyrobot.db` for the challenge unless you switch databases
