@@ -4,6 +4,8 @@ const state = {
   timerId: null,
   isFetching: false,
   data: null,
+  page: 0,
+  pageSize: 10,
 };
 
 const elements = {
@@ -13,6 +15,7 @@ const elements = {
   loadStatusChart: document.getElementById("load-status-chart"),
   deltaSummary: document.getElementById("delta-summary"),
   callsTableBody: document.getElementById("calls-table-body"),
+  pagination: document.getElementById("pagination"),
   lastUpdated: document.getElementById("last-updated"),
   fetchStatus: document.getElementById("fetch-status"),
   staleWarning: document.getElementById("stale-warning"),
@@ -201,9 +204,8 @@ function renderCalls(recentCalls) {
               </section>
               <section class="detail-block">
                 <h3>Load snapshot</h3>
-                ${
-                  call.selected_load
-                    ? `
+                ${call.selected_load
+          ? `
                       <dl class="detail-grid">
                         <div>
                           <dt>Load ID</dt>
@@ -231,8 +233,8 @@ function renderCalls(recentCalls) {
                         </div>
                       </dl>
                     `
-                    : '<p class="muted-text">This call did not end with a selected load.</p>'
-                }
+          : '<p class="muted-text">This call did not end with a selected load.</p>'
+        }
               </section>
             </div>
           </td>
@@ -259,6 +261,33 @@ function renderCalls(recentCalls) {
   });
 }
 
+function renderPagination(totalCalls, page, pageSize) {
+  const totalPages = Math.max(Math.ceil(totalCalls / pageSize), 1);
+
+  const isFirst = page === 0;
+  const isLast = page >= totalPages - 1;
+
+  elements.pagination.innerHTML = `
+    <button class="pagination-button" data-page="prev" ${isFirst ? "disabled" : ""}>Prev</button>
+    <p class="pagination-label">Page ${page + 1} of ${totalPages}</p>
+    <button class="pagination-button" data-page="next" ${isLast ? "disabled" : ""}>Next</button>
+  `;
+
+  elements.pagination.querySelector('[data-page="prev"]').addEventListener("click", () => {
+    if (state.page > 0) {
+      state.page--;
+      fetchDashboardData({ manual: true });
+    }
+  });
+
+  elements.pagination.querySelector('[data-page="next"]').addEventListener("click", () => {
+    if (state.page < totalPages - 1) {
+      state.page++;
+      fetchDashboardData({ manual: true });
+    }
+  });
+}
+
 function renderDashboard(data) {
   renderKpis(data.summary);
   renderBars(elements.outcomeChart, data.summary.outcome_counts);
@@ -266,6 +295,7 @@ function renderDashboard(data) {
   renderBars(elements.loadStatusChart, data.load_status_counts);
   renderDelta(data.summary);
   renderCalls(data.recent_calls);
+  renderPagination(data.total_calls, state.page, state.pageSize);
 
   elements.lastUpdated.textContent = formatDateTime(data.last_updated_at);
   elements.fetchStatus.textContent = "Live";
@@ -276,12 +306,17 @@ async function fetchDashboardData({ manual = false } = {}) {
     return;
   }
 
+  if (!manual) {
+    state.page = 0;
+  }
+
   state.isFetching = true;
   elements.refreshButton.disabled = true;
   elements.fetchStatus.textContent = "Refreshing...";
 
   try {
-    const response = await fetch("/dashboard/data?limit=25", {
+    const offset = state.page * state.pageSize;
+    const response = await fetch(`/dashboard/data?limit=${state.pageSize}&offset=${offset}`, {
       headers: {
         Accept: "application/json",
       },

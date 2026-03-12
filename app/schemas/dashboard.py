@@ -33,6 +33,8 @@ class DashboardDataResponse(BaseModel):
     summary: MetricsSummaryResponse
     load_status_counts: dict[str, int]
     recent_calls: list[DashboardRecentCall]
+    total_calls: int
+    page_size: int
     last_updated_at: datetime
 
 

@@ -92,10 +92,11 @@ def dashboard_login(
 @router.get("/dashboard/data", response_model=DashboardDataResponse, tags=["dashboard"])
 def dashboard_data(
     limit: int = Query(default=25, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db_session),
     _: None = Depends(require_dashboard_session),
 ) -> DashboardDataResponse:
-    return build_dashboard_data(db=db, limit=limit)
+    return build_dashboard_data(db=db, limit=limit, offset=offset)
 
 
 router.include_router(api_router)

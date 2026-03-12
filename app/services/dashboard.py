@@ -18,10 +18,12 @@ def _group_counts(rows: list[tuple[str | None, int]]) -> dict[str, int]:
     return dict(grouped)
 
 
-def build_dashboard_data(db: Session, limit: int = 25) -> DashboardDataResponse:
+def build_dashboard_data(db: Session, limit: int = 25, offset: int = 0) -> DashboardDataResponse:
     summary = build_metrics_summary(db=db)
 
     load_status_counts = _group_counts(db.query(Load.status, func.count(Load.id)).group_by(Load.status).all())
+
+    total_calls = db.query(func.count(CallSession.id)).scalar() or 0
 
     negotiation_rounds_subquery = (
         db.query(
@@ -42,6 +44,7 @@ def build_dashboard_data(db: Session, limit: int = 25) -> DashboardDataResponse:
         .outerjoin(negotiation_rounds_subquery, CallSession.id == negotiation_rounds_subquery.c.call_session_id)
         .order_by(CallSession.updated_at.desc(), CallSession.id.desc())
         .limit(limit)
+        .offset(offset)
         .all()
     )
 
@@ -78,5 +81,7 @@ def build_dashboard_data(db: Session, limit: int = 25) -> DashboardDataResponse:
         summary=summary,
         load_status_counts=load_status_counts,
         recent_calls=recent_calls,
+        total_calls=total_calls,
+        page_size=limit,
         last_updated_at=datetime.utcnow(),
     )
