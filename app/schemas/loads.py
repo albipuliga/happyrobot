@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class LoadSearchRequest(BaseModel):
     external_call_id: str
     equipment_type: str
-    origin: str | None = None
+    origin: str
     destination: str | None = None
     pickup_date: date | None = None
 
