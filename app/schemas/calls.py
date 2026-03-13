@@ -4,19 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
-
-class CallOutcome(str, Enum):
-    BOOKED = "booked"
-    NO_MATCH = "no_match"
-    REJECTED_RATE = "rejected_rate"
-    CARRIER_INELIGIBLE = "carrier_ineligible"
-    OTHER = "other"
-
-
-class CallSentiment(str, Enum):
-    POSITIVE = "positive"
-    NEUTRAL = "neutral"
-    NEGATIVE = "negative"
+from app.state_vocab import CallOutcome, CallSentiment
 
 
 OUTCOME_ALIASES = {

@@ -5,6 +5,7 @@ from app.config import get_settings
 from app.models.load import Load
 from app.models.negotiation_event import NegotiationEvent
 from app.schemas.negotiation import NegotiateRequest, NegotiateResponse
+from app.state_vocab import LoadStatus, NegotiationDecision
 from app.services.calls import get_or_create_call_session
 
 
@@ -27,7 +28,7 @@ def negotiate_rate(db: Session, payload: NegotiateRequest) -> NegotiateResponse:
     load = db.query(Load).filter(Load.load_id == payload.load_id).one_or_none()
     if load is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Load not found.")
-    if load.status != "available":
+    if load.status != LoadStatus.AVAILABLE.value:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Load is no longer open for negotiation.")
 
     call_session = get_or_create_call_session(db=db, external_call_id=payload.external_call_id)
@@ -50,13 +51,13 @@ def negotiate_rate(db: Session, payload: NegotiateRequest) -> NegotiateResponse:
             round_number=accepted_round,
             carrier_offer=payload.carrier_offer,
             broker_counter=payload.carrier_offer,
-            decision="accepted",
+            decision=NegotiationDecision.ACCEPTED.value,
         )
         call_session.agreed_rate = payload.carrier_offer
         db.add_all([call_session, event])
         db.commit()
         return NegotiateResponse(
-            decision="accepted",
+            decision=NegotiationDecision.ACCEPTED,
             broker_offer=payload.carrier_offer,
             round=accepted_round,
             attempts_remaining=max(0, max_counter_rounds - rounds_completed),
@@ -71,12 +72,12 @@ def negotiate_rate(db: Session, payload: NegotiateRequest) -> NegotiateResponse:
             round_number=max_counter_rounds,
             carrier_offer=payload.carrier_offer,
             broker_counter=load.max_rate,
-            decision="rejected",
+            decision=NegotiationDecision.REJECTED.value,
         )
         db.add_all([call_session, event])
         db.commit()
         return NegotiateResponse(
-            decision="rejected",
+            decision=NegotiationDecision.REJECTED,
             broker_offer=load.max_rate,
             round=max_counter_rounds,
             attempts_remaining=0,
@@ -92,13 +93,13 @@ def negotiate_rate(db: Session, payload: NegotiateRequest) -> NegotiateResponse:
         round_number=next_round,
         carrier_offer=payload.carrier_offer,
         broker_counter=counter,
-        decision="countered",
+        decision=NegotiationDecision.COUNTERED.value,
     )
     db.add_all([call_session, event])
     db.commit()
 
     return NegotiateResponse(
-        decision="countered",
+        decision=NegotiationDecision.COUNTERED,
         broker_offer=counter,
         round=next_round,
         attempts_remaining=max(0, max_counter_rounds - next_round),

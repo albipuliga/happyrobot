@@ -353,6 +353,9 @@ def test_complete_call_marks_load_pending_transfer_and_updates_metrics(client):
 
 
 def test_complete_call_canonicalizes_legacy_classifier_aliases(client):
+    from app.config import get_settings
+    from app.db.session import get_session_factory
+
     response = client.post(
         "/api/v1/calls/complete",
         headers=_auth_headers(),
@@ -375,6 +378,12 @@ def test_complete_call_canonicalizes_legacy_classifier_aliases(client):
     assert metrics["outcome_counts"]["booked"] == 1
     assert metrics["sentiment_counts"]["neutral"] == 1
 
+    session_factory = get_session_factory(get_settings().database_url)
+    with session_factory() as db:
+        call_session = db.query(CallSession).filter(CallSession.external_call_id == "call-legacy-aliases").one()
+        assert call_session.outcome == "booked"
+        assert call_session.sentiment == "neutral"
+
 
 def test_complete_call_rejects_unknown_classifier_labels(client):
     response = client.post(
@@ -388,6 +397,58 @@ def test_complete_call_rejects_unknown_classifier_labels(client):
     )
 
     assert response.status_code == 422
+
+
+def test_metrics_and_dashboard_bucket_dirty_state_values_as_unknown(client):
+    from app.config import get_settings
+    from app.db.session import get_session_factory
+
+    session_factory = get_session_factory(get_settings().database_url)
+    with session_factory() as db:
+        dirty_load = db.query(Load).filter(Load.load_id == "ACM-1001").one()
+        dirty_load.status = "covered"
+        dirty_call = CallSession(
+            external_call_id="call-dirty-states",
+            mc_number="90909",
+            selected_load=dirty_load,
+            matched_loads_count=1,
+            agreed_rate=2200,
+            outcome="accepted",
+            sentiment="mixed",
+            ended_at=datetime.utcnow(),
+        )
+        db.add_all([dirty_load, dirty_call])
+        db.commit()
+
+    metrics_response = client.get("/api/v1/metrics/summary", headers=_auth_headers())
+    assert metrics_response.status_code == 200
+    metrics = metrics_response.json()
+    assert metrics["agreements"] == 0
+    assert metrics["transfers_ready"] == 0
+    assert metrics["outcome_counts"] == {"unknown": 1}
+    assert metrics["sentiment_counts"] == {"unknown": 1}
+
+    login_response = client.post("/dashboard/login", json={"password": "test-api-key"})
+    assert login_response.status_code == 200
+
+    dashboard_response = client.get("/dashboard/data")
+    assert dashboard_response.status_code == 200
+    body = dashboard_response.json()
+    assert body["summary"]["agreements"] == 0
+    assert body["summary"]["transfers_ready"] == 0
+    assert body["summary"]["outcome_counts"] == {"unknown": 1}
+    assert body["summary"]["sentiment_counts"] == {"unknown": 1}
+    assert body["load_status_counts"]["unknown"] == 1
+    assert {item["label"]: item["tone"] for item in body["outcome_breakdown"]} == {"unknown": "pending"}
+    assert {item["label"]: item["tone"] for item in body["sentiment_breakdown"]} == {"unknown": "pending"}
+    assert {item["label"]: item["tone"] for item in body["load_status_breakdown"]}["unknown"] == "pending"
+
+    recent_call = next(item for item in body["recent_calls"] if item["external_call_id"] == "call-dirty-states")
+    assert recent_call["outcome"] == "unknown"
+    assert recent_call["outcome_tone"] == "pending"
+    assert recent_call["sentiment"] == "unknown"
+    assert recent_call["sentiment_tone"] == "pending"
+    assert recent_call["selected_load"]["status"] == "unknown"
 
 
 def test_fmcsa_authority_status_rules():

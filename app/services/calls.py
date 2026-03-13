@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.call_session import CallSession
 from app.models.load import Load
 from app.schemas.calls import CallCompleteRequest, CallCompleteResponse, CallOutcome
+from app.state_vocab import LoadStatus
 
 
 def get_or_create_call_session(db: Session, external_call_id: str) -> CallSession:
@@ -36,7 +37,7 @@ def complete_call(db: Session, payload: CallCompleteRequest) -> CallCompleteResp
         call_session.selected_load = load
         load_status = load.status
         if is_booked:
-            load.status = "pending_transfer"
+            load.status = LoadStatus.PENDING_TRANSFER.value
             load_status = load.status
 
     if is_booked and payload.final_rate is not None:

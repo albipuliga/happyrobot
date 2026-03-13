@@ -4,6 +4,7 @@ from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.state_vocab import LoadStatus
 
 
 class Load(Base):
@@ -24,7 +25,7 @@ class Load(Base):
     num_of_pieces: Mapped[int] = mapped_column(Integer)
     miles: Mapped[int] = mapped_column(Integer)
     dimensions: Mapped[str] = mapped_column(String(128))
-    status: Mapped[str] = mapped_column(String(32), default="available", index=True)
+    status: Mapped[str] = mapped_column(String(32), default=LoadStatus.AVAILABLE.value, index=True)
     broker_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.models.call_session import CallSession
 from app.models.load import Load
 from app.schemas.loads import LoadSearchRequest, LoadSearchResponse, LoadSummary
+from app.state_vocab import LoadStatus
 from app.services.calls import get_or_create_call_session
 
 
@@ -55,7 +56,7 @@ def search_loads(db: Session, payload: LoadSearchRequest) -> LoadSearchResponse:
 
     candidate_loads = (
         db.query(Load)
-        .filter(Load.status == "available")
+        .filter(Load.status == LoadStatus.AVAILABLE.value)
         .filter(Load.equipment_type.ilike(payload.equipment_type))
         .all()
     )

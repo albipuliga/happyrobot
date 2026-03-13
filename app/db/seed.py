@@ -4,6 +4,7 @@ from pathlib import Path
 
 from app.db.session import get_session_factory
 from app.models.load import Load
+from app.state_vocab import LoadStatus
 
 
 def seed_loads_if_empty() -> None:
@@ -32,7 +33,7 @@ def seed_loads_if_empty() -> None:
                 num_of_pieces=item["num_of_pieces"],
                 miles=item["miles"],
                 dimensions=item["dimensions"],
-                status=item.get("status", "available"),
+                status=item.get("status", LoadStatus.AVAILABLE.value),
                 broker_notes=item.get("broker_notes"),
             )
             for item in raw_loads

@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.state_vocab import NegotiationDecision
+
 
 class NegotiateRequest(BaseModel):
     external_call_id: str
@@ -8,7 +10,7 @@ class NegotiateRequest(BaseModel):
 
 
 class NegotiateResponse(BaseModel):
-    decision: str
+    decision: NegotiationDecision
     broker_offer: int | None = None
     round: int
     attempts_remaining: int

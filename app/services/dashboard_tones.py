@@ -12,20 +12,11 @@ OUTCOME_TONES: dict[str, Tone] = {
     "other": PENDING,
     "carrier_ineligible": NEGATIVE,
     "rejected_rate": NEGATIVE,
-    "accepted": POSITIVE,
-    "agreed": POSITIVE,
-    "agreement_reached": POSITIVE,
-    "transfer_ready": POSITIVE,
-    "countered": PENDING,
-    "pending": PENDING,
-    "rejected": NEGATIVE,
-    "failed": NEGATIVE,
 }
 
 SENTIMENT_TONES: dict[str, Tone] = {
     "positive": POSITIVE,
     "neutral": PENDING,
-    "mixed": PENDING,
     "negative": NEGATIVE,
 }
 
