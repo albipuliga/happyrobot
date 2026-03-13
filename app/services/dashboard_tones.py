@@ -31,12 +31,7 @@ SENTIMENT_TONES: dict[str, Tone] = {
 
 LOAD_STATUS_TONES: dict[str, Tone] = {
     "available": PENDING,
-    "booked": POSITIVE,
-    "covered": POSITIVE,
     "pending_transfer": POSITIVE,
-    "cancelled": NEGATIVE,
-    "expired": NEGATIVE,
-    "failed": NEGATIVE,
 }
 
 

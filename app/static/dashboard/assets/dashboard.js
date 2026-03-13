@@ -1,4 +1,4 @@
-const REFRESH_INTERVAL_MS = 30000;
+const REFRESH_INTERVAL_MS = 15000;
 
 const state = {
   timerId: null,
@@ -73,12 +73,28 @@ function sentenceCase(value) {
 }
 
 function renderKpis(summary) {
+  const totalCalls = summary.total_calls ?? 0;
+  const agreements = summary.agreements ?? 0;
+  const avgDelta = summary.average_agreed_vs_listed_delta;
+
+  const agreementsSubtext =
+    totalCalls > 0
+      ? `${agreements} of ${totalCalls} calls (${formatPercent((agreements / totalCalls) * 100)})`
+      : `${agreements} of ${totalCalls} calls`;
+
   const cards = [
-    { label: "Total calls", value: formatNumber(summary.total_calls) },
-    { label: "Agreements", value: formatNumber(summary.agreements) },
+    { label: "Total calls", value: formatNumber(totalCalls) },
+    {
+      label: "Agreements",
+      value: formatNumber(agreements),
+      subtext: agreementsSubtext,
+    },
     {
       label: "Net rate delta",
       value: formatCurrency(summary.total_agreed_vs_listed_delta),
+      subtext: avgDelta !== null && avgDelta !== undefined
+        ? `Avg per deal: ${formatCurrency(avgDelta)}`
+        : "No deals yet",
     },
   ];
 
@@ -88,6 +104,7 @@ function renderKpis(summary) {
         <article class="kpi-card">
           <p class="kpi-label">${escapeHtml(card.label)}</p>
           <p class="kpi-value">${escapeHtml(card.value)}</p>
+          ${card.subtext ? `<p class="kpi-subtext">${escapeHtml(card.subtext)}</p>` : ""}
         </article>
       `,
     )
@@ -102,12 +119,15 @@ function renderBars(container, items) {
     return;
   }
 
-  const max = Math.max(...entries.map((item) => item.count), 1);
+  const known = entries.filter((item) => item.label !== "unknown");
+  const unknownEntry = entries.find((item) => item.label === "unknown");
+  const total = known.reduce((sum, item) => sum + item.count, 0);
 
-  container.innerHTML = entries
+  const barsHtml = known
     .sort((a, b) => b.count - a.count)
     .map((item) => {
-      const width = Math.max((item.count / max) * 100, item.count > 0 ? 8 : 0);
+      const pct = total > 0 ? (item.count / total) * 100 : 0;
+      const width = Math.max(pct, item.count > 0 ? 4 : 0);
       return `
         <div class="chart-row">
           <div class="chart-meta">
@@ -121,6 +141,65 @@ function renderBars(container, items) {
       `;
     })
     .join("");
+
+  const footnote = unknownEntry && unknownEntry.count > 0
+    ? `<p class="chart-footnote">${unknownEntry.count} unclassified</p>`
+    : "";
+
+  container.innerHTML = barsHtml + footnote;
+}
+
+const TONE_COLORS = {
+  positive: "#059669",
+  negative: "#dc2626",
+  pending: "#d97706",
+};
+
+function renderPie(container, items) {
+  const entries = Array.isArray(items) ? items : [];
+
+  if (entries.length === 0) {
+    container.innerHTML = '<p class="empty-state">No data recorded yet.</p>';
+    return;
+  }
+
+  const sorted = [...entries].sort((a, b) => b.count - a.count);
+  const total = sorted.reduce((sum, item) => sum + item.count, 0);
+  const hasData = total > 0;
+
+  let cumulative = 0;
+  const stops = hasData
+    ? sorted.flatMap((item) => {
+      const color = TONE_COLORS[item.tone] || TONE_COLORS.pending;
+      const start = cumulative;
+      cumulative += (item.count / total) * 100;
+      return [`${color} ${start}% ${cumulative}%`];
+    })
+    : [];
+
+  const legend = sorted
+    .map((item) => {
+      const color = TONE_COLORS[item.tone] || TONE_COLORS.pending;
+      return `
+        <div class="pie-legend-row">
+          <span class="pie-swatch" style="background:${color}"></span>
+          <span class="pie-legend-label">${escapeHtml(sentenceCase(item.label))}</span>
+          <span class="pie-legend-value">${escapeHtml(formatNumber(item.count))}</span>
+        </div>
+      `;
+    })
+    .join("");
+
+  container.innerHTML = `
+    <div class="pie-layout">
+      <div class="pie-ring" style="background:${hasData ? `conic-gradient(${stops.join(", ")})` : "var(--border-subtle)"}">
+        <div class="pie-hole">
+          <span class="pie-total">${formatNumber(total)}</span>
+        </div>
+      </div>
+      <div class="pie-legend">${legend}</div>
+    </div>
+  `;
 }
 
 function renderDelta(summary) {
@@ -139,9 +218,9 @@ function renderDelta(summary) {
   }
 
   elements.deltaSummary.innerHTML = `
+    <p class="delta-value tone-${tone}">${escapeHtml(formatCurrency(total))}</p>
     <span class="delta-chip ${tone}">${escapeHtml(label)}</span>
-    <p class="delta-value">${escapeHtml(formatCurrency(total))}</p>
-    <p class="delta-copy">Average negotiated delta: ${escapeHtml(formatCurrency(average))}</p>
+    <p class="delta-copy">Avg per deal: ${escapeHtml(formatCurrency(average))}</p>
   `;
 }
 
@@ -166,17 +245,22 @@ function renderCalls(recentCalls) {
       const detailRowId = `detail-row-${index}`;
       const detailButtonId = `detail-button-${index}`;
 
+      const dealClass = call.agreed_rate !== null ? " call-row--deal" : "";
+      const verificationMuted = call.verification_passed === null ? " muted" : "";
+      const outcomeMuted = !call.outcome || call.outcome === "unknown" ? " muted" : "";
+      const sentimentMuted = !call.sentiment || call.sentiment === "unknown" ? " muted" : "";
+
       return `
-        <tr class="call-row" aria-expanded="false" data-detail="${detailRowId}" role="button" tabindex="0">
+        <tr class="call-row${dealClass}" aria-expanded="false" data-detail="${detailRowId}" role="button" tabindex="0">
           <td>
             <div class="call-identity">
               <span class="call-id">${escapeHtml(call.external_call_id)}</span>
               <span class="call-subtext">${escapeHtml(`${call.mc_number || "No MC"} · ${call.negotiation_rounds} negotiation rounds`)}</span>
             </div>
           </td>
-          <td><span class="pill ${call.verification_tone}">${verificationLabel}</span></td>
-          <td><span class="pill ${call.outcome_tone}">${escapeHtml(sentenceCase(call.outcome))}</span></td>
-          <td><span class="pill ${call.sentiment_tone}">${escapeHtml(sentenceCase(call.sentiment))}</span></td>
+          <td><span class="pill ${call.verification_tone}${verificationMuted}">${verificationLabel}</span></td>
+          <td><span class="pill ${call.outcome_tone}${outcomeMuted}">${escapeHtml(sentenceCase(call.outcome))}</span></td>
+          <td><span class="pill ${call.sentiment_tone}${sentimentMuted}">${escapeHtml(sentenceCase(call.sentiment))}</span></td>
           <td>${escapeHtml(rate)}</td>
           <td>${escapeHtml(loadSummary)}</td>
           <td>${escapeHtml(formatDateTime(call.ended_at || call.started_at))}</td>
@@ -278,7 +362,7 @@ function renderDashboard(data) {
   renderKpis(data.summary);
   renderBars(elements.outcomeChart, data.outcome_breakdown);
   renderBars(elements.sentimentChart, data.sentiment_breakdown);
-  renderBars(elements.loadStatusChart, data.load_status_breakdown);
+  renderPie(elements.loadStatusChart, data.load_status_breakdown);
   renderDelta(data.summary);
   renderCalls(data.recent_calls);
   renderPagination(data.total_calls, state.page, state.pageSize);

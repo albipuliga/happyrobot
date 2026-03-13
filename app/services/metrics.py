@@ -3,15 +3,20 @@ from sqlalchemy.orm import Session
 
 from app.models.call_session import CallSession
 from app.models.load import Load
+from app.schemas.calls import CallOutcome, OUTCOME_ALIASES
 from app.schemas.metrics import MetricsSummaryResponse
 from app.services.common import group_counts
+
+_AGREEMENT_OUTCOMES = {CallOutcome.BOOKED.value} | {
+    alias for alias, canonical in OUTCOME_ALIASES.items() if canonical == CallOutcome.BOOKED.value
+}
 
 
 def build_metrics_summary(db: Session) -> MetricsSummaryResponse:
     total_calls = db.query(func.count(CallSession.id)).scalar() or 0
     verified_calls = db.query(func.count(CallSession.id)).filter(CallSession.verification_passed.is_(True)).scalar() or 0
     matched_calls = db.query(func.count(CallSession.id)).filter(CallSession.matched_loads_count > 0).scalar() or 0
-    agreements = db.query(func.count(CallSession.id)).filter(CallSession.outcome == "booked").scalar() or 0
+    agreements = db.query(func.count(CallSession.id)).filter(CallSession.outcome.in_(_AGREEMENT_OUTCOMES)).scalar() or 0
     transfers_ready = db.query(func.count(Load.id)).filter(Load.status == "pending_transfer").scalar() or 0
 
     outcome_counts = group_counts(

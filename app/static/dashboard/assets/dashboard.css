@@ -213,6 +213,13 @@ textarea {
   color: var(--text);
 }
 
+.kpi-subtext {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* Analytics */
 
 .analytics-grid {
@@ -272,6 +279,7 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+
 .chart-track {
   height: 7px;
   border-radius: 4px;
@@ -299,36 +307,136 @@ textarea {
   background: var(--pending);
 }
 
+/* Pie chart */
+
+.pie-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.pie-ring {
+  position: relative;
+  width: 120px;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.pie-hole {
+  position: absolute;
+  inset: 28%;
+  border-radius: 50%;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pie-total {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.pie-legend {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.pie-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.pie-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.pie-legend-label {
+  color: var(--text);
+  font-weight: 500;
+  flex: 1;
+}
+
+.pie-legend-value {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Vertically centered metric blocks */
+
+.load-status-block,
+.delta-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.load-status-block .chart-list {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+}
+
 /* Delta */
 
 .delta-summary {
-  display: grid;
-  align-content: start;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex: 1;
+  gap: 6px;
 }
 
 .delta-chip {
   display: inline-flex;
-  justify-self: start;
-  border-radius: var(--radius-sm);
-  padding: 5px 12px;
-  font-size: 12px;
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .delta-value {
   margin: 0;
-  font-size: 30px;
+  font-size: 36px;
   font-weight: 700;
   letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.delta-value.tone-positive {
+  color: var(--positive);
+}
+
+.delta-value.tone-negative {
+  color: var(--negative);
+}
+
+.delta-value.tone-pending {
+  color: var(--text-tertiary);
 }
 
 .delta-copy {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
 }
+
 
 .delta-chip.positive,
 .pill.positive {
@@ -437,6 +545,14 @@ textarea {
   white-space: nowrap;
 }
 
+.pill.muted {
+  opacity: 0.5;
+}
+
+.call-row--deal {
+  border-left: 3px solid var(--positive);
+}
+
 .call-row {
   cursor: pointer;
   transition: background-color 150ms ease;
@@ -506,6 +622,12 @@ textarea {
   color: var(--text);
   font-weight: 500;
   font-size: 13px;
+}
+
+.chart-footnote {
+  margin: 8px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
 }
 
 .empty-state {
