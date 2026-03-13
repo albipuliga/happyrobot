@@ -14,7 +14,14 @@ class CallCompleteRequest(BaseModel):
     transcript_excerpt: str | None = None
     extracted_fields: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("load_id", "mc_number", "transcript_excerpt", mode="before")
+    @field_validator("mc_number", mode="before")
+    @classmethod
+    def coerce_mc_number(cls, v):
+        if v is None or v == "" or v == "null":
+            return None
+        return str(v).strip()
+
+    @field_validator("load_id", "transcript_excerpt", mode="before")
     @classmethod
     def empty_string_to_none(cls, v):
         if v is None or v == "" or v == "null":
