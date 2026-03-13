@@ -11,7 +11,7 @@ def build_metrics_summary(db: Session) -> MetricsSummaryResponse:
     total_calls = db.query(func.count(CallSession.id)).scalar() or 0
     verified_calls = db.query(func.count(CallSession.id)).filter(CallSession.verification_passed.is_(True)).scalar() or 0
     matched_calls = db.query(func.count(CallSession.id)).filter(CallSession.matched_loads_count > 0).scalar() or 0
-    agreements = db.query(func.count(CallSession.id)).filter(CallSession.agreed_rate.is_not(None)).scalar() or 0
+    agreements = db.query(func.count(CallSession.id)).filter(CallSession.outcome == "booked").scalar() or 0
     transfers_ready = db.query(func.count(Load.id)).filter(Load.status == "pending_transfer").scalar() or 0
 
     outcome_counts = group_counts(

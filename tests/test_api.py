@@ -118,8 +118,11 @@ def test_dashboard_login_unlocks_page_and_data(client):
     body = data_response.json()
     assert body["summary"]["total_calls"] == 0
     assert body["summary"]["agreements"] == 0
+    assert body["outcome_breakdown"] == []
+    assert body["sentiment_breakdown"] == []
     assert body["recent_calls"] == []
     assert body["load_status_counts"]["available"] > 0
+    assert body["load_status_breakdown"] == [{"label": "available", "count": body["load_status_counts"]["available"], "tone": "pending"}]
     assert body["last_updated_at"] is not None
 
 
@@ -285,7 +288,7 @@ def test_negotiation_rejects_pending_transfer_load(client):
             "external_call_id": "call-pending-transfer",
             "load_id": "ACM-1001",
             "final_rate": 2300,
-            "outcome": "agreed",
+            "outcome": "booked",
             "sentiment": "positive",
         },
     )
@@ -320,7 +323,7 @@ def test_complete_call_marks_load_pending_transfer_and_updates_metrics(client):
             "mc_number": "55555",
             "load_id": "ACM-1001",
             "final_rate": 2300,
-            "outcome": "agreed",
+            "outcome": "booked",
             "sentiment": "positive",
             "transcript_excerpt": "Carrier accepted the load at 2300.",
             "extracted_fields": {"carrier_name": "Acme Carrier LLC"},
@@ -335,7 +338,7 @@ def test_complete_call_marks_load_pending_transfer_and_updates_metrics(client):
     metrics = metrics_response.json()
     assert metrics["agreements"] == 1
     assert metrics["transfers_ready"] == 1
-    assert metrics["outcome_counts"]["agreed"] == 1
+    assert metrics["outcome_counts"]["booked"] == 1
     assert metrics["sentiment_counts"]["positive"] == 1
 
     login_response = client.post("/dashboard/login", json={"password": "test-api-key"})
@@ -345,8 +348,46 @@ def test_complete_call_marks_load_pending_transfer_and_updates_metrics(client):
     assert dashboard_response.status_code == 200
     dashboard = dashboard_response.json()
     assert dashboard["summary"]["agreements"] == 1
-    assert dashboard["summary"]["outcome_counts"]["agreed"] == 1
+    assert dashboard["summary"]["outcome_counts"]["booked"] == 1
     assert dashboard["summary"]["sentiment_counts"]["positive"] == 1
+
+
+def test_complete_call_canonicalizes_legacy_classifier_aliases(client):
+    response = client.post(
+        "/api/v1/calls/complete",
+        headers=_auth_headers(),
+        json={
+            "external_call_id": "call-legacy-aliases",
+            "load_id": "ACM-1001",
+            "final_rate": 2200,
+            "outcome": "accepted",
+            "sentiment": "mixed",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["load_status"] == "pending_transfer"
+
+    metrics_response = client.get("/api/v1/metrics/summary", headers=_auth_headers())
+    assert metrics_response.status_code == 200
+    metrics = metrics_response.json()
+    assert metrics["agreements"] == 1
+    assert metrics["outcome_counts"]["booked"] == 1
+    assert metrics["sentiment_counts"]["neutral"] == 1
+
+
+def test_complete_call_rejects_unknown_classifier_labels(client):
+    response = client.post(
+        "/api/v1/calls/complete",
+        headers=_auth_headers(),
+        json={
+            "external_call_id": "call-invalid-classification",
+            "outcome": "price_pending",
+            "sentiment": "happy",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_fmcsa_authority_status_rules():
@@ -432,7 +473,7 @@ def test_dashboard_data_includes_recent_calls_sorted_by_recency(client):
             "mc_number": "10101",
             "load_id": "ACM-1001",
             "final_rate": 2450,
-            "outcome": "agreed",
+            "outcome": "booked",
             "sentiment": "positive",
             "transcript_excerpt": "Carrier accepted after the second counter.",
             "extracted_fields": {"dispatcher": "Mila"},
@@ -448,7 +489,7 @@ def test_dashboard_data_includes_recent_calls_sorted_by_recency(client):
             "mc_number": "",
             "load_id": "",
             "final_rate": "",
-            "outcome": "rejected",
+            "outcome": "rejected_rate",
             "sentiment": "negative",
             "transcript_excerpt": "",
             "extracted_fields": {},
@@ -472,10 +513,19 @@ def test_dashboard_data_includes_recent_calls_sorted_by_recency(client):
     assert body["summary"]["total_calls"] == 2
     assert body["summary"]["agreements"] == 1
     assert body["summary"]["transfers_ready"] == 1
-    assert body["summary"]["outcome_counts"]["agreed"] == 1
-    assert body["summary"]["outcome_counts"]["rejected"] == 1
+    assert body["summary"]["outcome_counts"]["booked"] == 1
+    assert body["summary"]["outcome_counts"]["rejected_rate"] == 1
     assert body["summary"]["sentiment_counts"]["negative"] == 1
     assert body["load_status_counts"]["pending_transfer"] == 1
+    assert {item["label"]: item["tone"] for item in body["outcome_breakdown"]} == {
+        "booked": "positive",
+        "rejected_rate": "negative",
+    }
+    assert {item["label"]: item["tone"] for item in body["sentiment_breakdown"]} == {
+        "positive": "positive",
+        "negative": "negative",
+    }
+    assert {item["label"]: item["tone"] for item in body["load_status_breakdown"]}["pending_transfer"] == "positive"
 
     recent_calls = body["recent_calls"]
     assert [call["external_call_id"] for call in recent_calls] == ["call-dashboard-2", "call-dashboard-1"]
@@ -485,6 +535,9 @@ def test_dashboard_data_includes_recent_calls_sorted_by_recency(client):
     assert latest_call["agreed_rate"] is None
     assert latest_call["transcript_excerpt"] is None
     assert latest_call["negotiation_rounds"] == 0
+    assert latest_call["verification_tone"] == "pending"
+    assert latest_call["outcome_tone"] == "negative"
+    assert latest_call["sentiment_tone"] == "negative"
 
     earlier_call = recent_calls[1]
     assert earlier_call["selected_load"]["load_id"] == "ACM-1001"
@@ -492,6 +545,9 @@ def test_dashboard_data_includes_recent_calls_sorted_by_recency(client):
     assert earlier_call["agreed_rate"] == 2450
     assert earlier_call["negotiation_rounds"] == 2
     assert earlier_call["transcript_excerpt"] == "Carrier accepted after the second counter."
+    assert earlier_call["verification_tone"] == "positive"
+    assert earlier_call["outcome_tone"] == "positive"
+    assert earlier_call["sentiment_tone"] == "positive"
 
 
 def test_fmcsa_timeout_uses_cached_result(client):

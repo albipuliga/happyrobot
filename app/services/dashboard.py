@@ -9,12 +9,22 @@ from app.models.negotiation_event import NegotiationEvent
 from app.schemas.dashboard import DashboardDataResponse, DashboardLoadSnapshot, DashboardRecentCall
 from app.services.common import group_counts
 from app.services.metrics import build_metrics_summary
+from app.services.dashboard_tones import (
+    build_breakdown_items,
+    load_status_tone,
+    outcome_tone,
+    sentiment_tone,
+    verification_tone,
+)
 
 
 def build_dashboard_data(db: Session, limit: int = 25, offset: int = 0) -> DashboardDataResponse:
     summary = build_metrics_summary(db=db)
 
     load_status_counts = group_counts(db.query(Load.status, func.count(Load.id)).group_by(Load.status).all())
+    outcome_breakdown = build_breakdown_items(summary.outcome_counts, outcome_tone)
+    sentiment_breakdown = build_breakdown_items(summary.sentiment_counts, sentiment_tone)
+    load_status_breakdown = build_breakdown_items(load_status_counts, load_status_tone)
 
     total_calls = db.query(func.count(CallSession.id)).scalar() or 0
 
@@ -48,9 +58,12 @@ def build_dashboard_data(db: Session, limit: int = 25, offset: int = 0) -> Dashb
             ended_at=call_session.ended_at,
             mc_number=call_session.mc_number,
             verification_passed=call_session.verification_passed,
+            verification_tone=verification_tone(call_session.verification_passed),
             matched_loads_count=call_session.matched_loads_count,
             outcome=call_session.outcome,
+            outcome_tone=outcome_tone(call_session.outcome),
             sentiment=call_session.sentiment,
+            sentiment_tone=sentiment_tone(call_session.sentiment),
             agreed_rate=call_session.agreed_rate,
             selected_load=(
                 DashboardLoadSnapshot(
@@ -73,6 +86,9 @@ def build_dashboard_data(db: Session, limit: int = 25, offset: int = 0) -> Dashb
     return DashboardDataResponse(
         summary=summary,
         load_status_counts=load_status_counts,
+        outcome_breakdown=outcome_breakdown,
+        sentiment_breakdown=sentiment_breakdown,
+        load_status_breakdown=load_status_breakdown,
         recent_calls=recent_calls,
         total_calls=total_calls,
         page_size=limit,

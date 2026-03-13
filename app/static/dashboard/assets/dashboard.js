@@ -72,20 +72,6 @@ function sentenceCase(value) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function statusTone(value) {
-  const normalized = String(value || "").toLowerCase();
-
-  if (["agreed", "accepted", "positive", "verified", "pending_transfer", "true"].includes(normalized)) {
-    return "positive";
-  }
-
-  if (["rejected", "negative", "failed", "false"].includes(normalized)) {
-    return "negative";
-  }
-
-  return "pending";
-}
-
 function renderKpis(summary) {
   const cards = [
     { label: "Total calls", value: formatNumber(summary.total_calls) },
@@ -108,29 +94,28 @@ function renderKpis(summary) {
     .join("");
 }
 
-function renderBars(container, counts) {
-  const entries = Object.entries(counts || {});
+function renderBars(container, items) {
+  const entries = Array.isArray(items) ? items : [];
 
   if (entries.length === 0) {
     container.innerHTML = '<p class="empty-state">No data recorded yet.</p>';
     return;
   }
 
-  const max = Math.max(...entries.map(([, value]) => value), 1);
+  const max = Math.max(...entries.map((item) => item.count), 1);
 
   container.innerHTML = entries
-    .sort((a, b) => b[1] - a[1])
-    .map(([label, value]) => {
-      const width = Math.max((value / max) * 100, value > 0 ? 8 : 0);
-      const tone = statusTone(label);
+    .sort((a, b) => b.count - a.count)
+    .map((item) => {
+      const width = Math.max((item.count / max) * 100, item.count > 0 ? 8 : 0);
       return `
         <div class="chart-row">
           <div class="chart-meta">
-            <span class="chart-label">${escapeHtml(sentenceCase(label))}</span>
-            <span class="chart-value">${escapeHtml(formatNumber(value))}</span>
+            <span class="chart-label">${escapeHtml(sentenceCase(item.label))}</span>
+            <span class="chart-value">${escapeHtml(formatNumber(item.count))}</span>
           </div>
           <div class="chart-track" aria-hidden="true">
-            <div class="chart-fill tone-${tone}" style="width:${width}%"></div>
+            <div class="chart-fill tone-${item.tone}" style="width:${width}%"></div>
           </div>
         </div>
       `;
@@ -189,9 +174,9 @@ function renderCalls(recentCalls) {
               <span class="call-subtext">${escapeHtml(`${call.mc_number || "No MC"} · ${call.negotiation_rounds} negotiation rounds`)}</span>
             </div>
           </td>
-          <td><span class="pill ${statusTone(String(call.verification_passed))}">${verificationLabel}</span></td>
-          <td><span class="pill ${statusTone(call.outcome)}">${escapeHtml(sentenceCase(call.outcome))}</span></td>
-          <td><span class="pill ${statusTone(call.sentiment)}">${escapeHtml(sentenceCase(call.sentiment))}</span></td>
+          <td><span class="pill ${call.verification_tone}">${verificationLabel}</span></td>
+          <td><span class="pill ${call.outcome_tone}">${escapeHtml(sentenceCase(call.outcome))}</span></td>
+          <td><span class="pill ${call.sentiment_tone}">${escapeHtml(sentenceCase(call.sentiment))}</span></td>
           <td>${escapeHtml(rate)}</td>
           <td>${escapeHtml(loadSummary)}</td>
           <td>${escapeHtml(formatDateTime(call.ended_at || call.started_at))}</td>
@@ -291,9 +276,9 @@ function renderPagination(totalCalls, page, pageSize) {
 
 function renderDashboard(data) {
   renderKpis(data.summary);
-  renderBars(elements.outcomeChart, data.summary.outcome_counts);
-  renderBars(elements.sentimentChart, data.summary.sentiment_counts);
-  renderBars(elements.loadStatusChart, data.load_status_counts);
+  renderBars(elements.outcomeChart, data.outcome_breakdown);
+  renderBars(elements.sentimentChart, data.sentiment_breakdown);
+  renderBars(elements.loadStatusChart, data.load_status_breakdown);
   renderDelta(data.summary);
   renderCalls(data.recent_calls);
   renderPagination(data.total_calls, state.page, state.pageSize);
