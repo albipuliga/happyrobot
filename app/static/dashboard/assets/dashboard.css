@@ -434,6 +434,7 @@ textarea {
   color: var(--text);
   font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .call-row {
