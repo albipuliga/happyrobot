@@ -25,7 +25,7 @@ form.addEventListener("submit", async (event) => {
       throw new Error(payload.detail || "Invalid password.");
     }
 
-    window.location.assign("/dashboard");
+    window.location.reload();
   } catch (error) {
     errorMessage.textContent = error.message || "Invalid password.";
     passwordInput.select();
