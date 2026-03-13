@@ -27,7 +27,7 @@ def negotiate_rate(db: Session, payload: NegotiateRequest) -> NegotiateResponse:
     load = db.query(Load).filter(Load.load_id == payload.load_id).one_or_none()
     if load is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Load not found.")
-    if load.status not in {"available", "pending_transfer"}:
+    if load.status != "available":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Load is no longer open for negotiation.")
 
     call_session = get_or_create_call_session(db=db, external_call_id=payload.external_call_id)

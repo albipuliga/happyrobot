@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import datetime
 
 from sqlalchemy import func
@@ -8,20 +7,14 @@ from app.models.call_session import CallSession
 from app.models.load import Load
 from app.models.negotiation_event import NegotiationEvent
 from app.schemas.dashboard import DashboardDataResponse, DashboardLoadSnapshot, DashboardRecentCall
+from app.services.common import group_counts
 from app.services.metrics import build_metrics_summary
-
-
-def _group_counts(rows: list[tuple[str | None, int]]) -> dict[str, int]:
-    grouped: dict[str, int] = defaultdict(int)
-    for label, count in rows:
-        grouped[label or "unknown"] += count
-    return dict(grouped)
 
 
 def build_dashboard_data(db: Session, limit: int = 25, offset: int = 0) -> DashboardDataResponse:
     summary = build_metrics_summary(db=db)
 
-    load_status_counts = _group_counts(db.query(Load.status, func.count(Load.id)).group_by(Load.status).all())
+    load_status_counts = group_counts(db.query(Load.status, func.count(Load.id)).group_by(Load.status).all())
 
     total_calls = db.query(func.count(CallSession.id)).scalar() or 0
 

@@ -33,8 +33,8 @@ class FMCSAClient:
                     detail="FMCSA API key is not configured.",
                 )
 
-            docket_payload = self._get(f"/carriers/docket-number/{mc_number}")
-            carrier_record = self._pick_first_record(docket_payload)
+            carrier_lookup = self._fetch_carrier_lookup(mc_number)
+            carrier_record = carrier_lookup["carrier_record"]
             if not carrier_record:
                 result = self._persist_check(
                     db=db,
@@ -43,41 +43,35 @@ class FMCSAClient:
                     verified=False,
                     eligible=False,
                     reasons=["Carrier not found for the provided MC number."],
-                    snapshot={"docket_lookup": docket_payload},
+                    snapshot={"docket_lookup": carrier_lookup["docket_payload"]},
                 )
                 return result
 
-            dot_number = self._normalize_scalar(carrier_record.get("dotNumber") or carrier_record.get("dot_number"))
-            carrier_payload = self._get(f"/carriers/{dot_number}") if dot_number else {}
-            carrier_details = self._pick_first_record(carrier_payload) or carrier_record
-            basics_payload = self._get(f"/carriers/{dot_number}/basics") if dot_number else {}
-            basics_records = self._coerce_list(basics_payload)
-            authority_payload = self._get(f"/carriers/{dot_number}/authority") if dot_number else {}
-            authority_record = self._pick_first_record(authority_payload) or authority_payload
-
-            reasons = self._eligibility_reasons(carrier_details=carrier_details, basics_records=basics_records, authority_record=authority_record)
-            authority_status = self._extract_authority_status(authority_record)
-            carrier_name = self._normalize_scalar(
-                carrier_details.get("legalName") or carrier_details.get("legal_name") or carrier_details.get("dbaName")
+            carrier_details = self._fetch_carrier_details(carrier_lookup["dot_number"], carrier_record)
+            evaluation = self._evaluate_carrier(
+                dot_number=carrier_lookup["dot_number"],
+                carrier_details=carrier_details["carrier_details"],
+                basics_records=carrier_details["basics_records"],
+                authority_record=carrier_details["authority_record"],
             )
 
             result = self._persist_check(
                 db=db,
                 mc_number=mc_number,
                 call_session=call_session,
-                verified=bool(dot_number),
-                eligible=not reasons and bool(dot_number),
-                reasons=reasons,
+                verified=evaluation["verified"],
+                eligible=evaluation["eligible"],
+                reasons=evaluation["reasons"],
                 snapshot={
-                    "docket_lookup": docket_payload,
-                    "carrier": carrier_payload,
-                    "basics": basics_payload,
-                    "authority": authority_payload,
+                    "docket_lookup": carrier_lookup["docket_payload"],
+                    "carrier": carrier_details["carrier_payload"],
+                    "basics": carrier_details["basics_payload"],
+                    "authority": carrier_details["authority_payload"],
                 },
-                dot_number=dot_number,
-                carrier_name=carrier_name,
-                dba_name=self._normalize_scalar(carrier_details.get("dbaName")),
-                authority_status=authority_status,
+                dot_number=carrier_lookup["dot_number"],
+                carrier_name=evaluation["carrier_name"],
+                dba_name=evaluation["dba_name"],
+                authority_status=evaluation["authority_status"],
                 verification_source="live",
             )
             return result
@@ -90,6 +84,61 @@ class FMCSAClient:
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Unable to verify carrier with FMCSA at this time.",
             )
+
+    def _fetch_carrier_lookup(self, mc_number: str) -> dict[str, Any]:
+        docket_payload = self._get(f"/carriers/docket-number/{mc_number}")
+        carrier_record = self._pick_first_record(docket_payload)
+        dot_number = None
+        if carrier_record:
+            dot_number = self._normalize_scalar(carrier_record.get("dotNumber") or carrier_record.get("dot_number"))
+
+        return {
+            "docket_payload": docket_payload,
+            "carrier_record": carrier_record,
+            "dot_number": dot_number,
+        }
+
+    def _fetch_carrier_details(self, dot_number: str | None, carrier_record: dict[str, Any]) -> dict[str, Any]:
+        carrier_payload = self._get(f"/carriers/{dot_number}") if dot_number else {}
+        carrier_details = self._pick_first_record(carrier_payload) or carrier_record
+        basics_payload = self._get(f"/carriers/{dot_number}/basics") if dot_number else {}
+        basics_records = self._coerce_list(basics_payload)
+        authority_payload = self._get(f"/carriers/{dot_number}/authority") if dot_number else {}
+        authority_record = self._pick_first_record(authority_payload) or authority_payload
+
+        return {
+            "carrier_payload": carrier_payload,
+            "carrier_details": carrier_details,
+            "basics_payload": basics_payload,
+            "basics_records": basics_records,
+            "authority_payload": authority_payload,
+            "authority_record": authority_record,
+        }
+
+    def _evaluate_carrier(
+        self,
+        dot_number: str | None,
+        carrier_details: dict[str, Any],
+        basics_records: list[dict[str, Any]],
+        authority_record: dict[str, Any] | list[Any],
+    ) -> dict[str, Any]:
+        authority_status = self._normalize_authority_status(authority_record)
+        reasons = self._eligibility_reasons(
+            carrier_details=carrier_details,
+            basics_records=basics_records,
+            authority_status=authority_status,
+        )
+        carrier_name = self._normalize_scalar(
+            carrier_details.get("legalName") or carrier_details.get("legal_name") or carrier_details.get("dbaName")
+        )
+        return {
+            "verified": bool(dot_number),
+            "eligible": bool(dot_number) and not reasons,
+            "reasons": reasons,
+            "carrier_name": carrier_name,
+            "dba_name": self._normalize_scalar(carrier_details.get("dbaName")),
+            "authority_status": authority_status["label"],
+        }
 
     def _get(self, path: str) -> dict[str, Any] | list[Any]:
         params = {"webKey": self.settings.fmcsa_api_key}
@@ -179,7 +228,7 @@ class FMCSAClient:
         self,
         carrier_details: dict[str, Any],
         basics_records: list[dict[str, Any]],
-        authority_record: dict[str, Any],
+        authority_status: dict[str, str | None],
     ) -> list[str]:
         reasons: list[str] = []
 
@@ -195,15 +244,29 @@ class FMCSAClient:
             if self._normalize_scalar(basic.get("rdsvDeficient")) == "Y":
                 reasons.append(f"{basic_name} exceeds the FMCSA threshold.")
 
-        authority_status = (self._extract_authority_status(authority_record) or "").lower()
-        # FMCSA uses "A" for Active, "I" for Inactive, etc.
-        active_values = {"a", "active"}
-        if authority_status and authority_status not in active_values and "active" not in authority_status:
-            reasons.append(f"Authority status is {authority_status}.")
-        if not authority_status:
+        authority_key = authority_status["key"]
+        authority_label = authority_status["label"]
+        if authority_key == "active":
+            return reasons
+        if authority_label:
+            reasons.append(f"Authority status is {authority_label.lower()}.")
+        else:
             reasons.append("Authority status could not be confirmed.")
 
         return reasons
+
+    def _normalize_authority_status(self, authority_record: dict[str, Any] | list[Any]) -> dict[str, str | None]:
+        raw_status = self._extract_authority_status(authority_record)
+        if raw_status is None:
+            return {"key": None, "label": None}
+
+        normalized = raw_status.strip()
+        lowered = normalized.lower()
+        if lowered in {"a", "active"}:
+            return {"key": "active", "label": "Active"}
+        if lowered in {"i", "inactive"}:
+            return {"key": "inactive", "label": "Inactive"}
+        return {"key": lowered, "label": normalized}
 
     def _extract_authority_status(self, authority_record: dict[str, Any] | list[Any]) -> str | None:
         if isinstance(authority_record, list):

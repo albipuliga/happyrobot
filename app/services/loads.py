@@ -67,8 +67,7 @@ def search_loads(db: Session, payload: LoadSearchRequest) -> LoadSearchResponse:
 
     top_matches = ranked_loads[:3]
     call_session.matched_loads_count = len(top_matches)
-    if top_matches:
-        call_session.selected_load_id = top_matches[0].id
+    call_session.selected_load_id = top_matches[0].id if top_matches else None
     db.add(call_session)
     db.commit()
 

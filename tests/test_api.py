@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import httpx
+import pytest
 
 from app.dependencies import get_fmcsa_client
 from app.models.carrier_check import CarrierCheck
@@ -138,6 +139,17 @@ def test_verify_carrier_success(client):
     assert body["dot_number"] == "123456"
 
 
+@pytest.mark.parametrize("mc_number", [None, "", "   ", "null"])
+def test_verify_carrier_rejects_invalid_mc_number(client, mc_number):
+    response = client.post(
+        "/api/v1/carriers/verify",
+        headers=_auth_headers(),
+        json={"external_call_id": "call-invalid", "mc_number": mc_number},
+    )
+
+    assert response.status_code == 422
+
+
 def test_search_loads_returns_ranked_matches(client):
     response = client.post(
         "/api/v1/loads/search",
@@ -173,6 +185,46 @@ def test_search_loads_no_match(client):
     body = response.json()
     assert body["matches"] == []
     assert body["best_match"] is None
+
+
+def test_search_loads_clears_selected_load_when_no_match(client):
+    first_response = client.post(
+        "/api/v1/loads/search",
+        headers=_auth_headers(),
+        json={
+            "external_call_id": "call-search-state",
+            "equipment_type": "Dry Van",
+            "origin": "Dallas",
+            "destination": "Atlanta",
+            "pickup_date": "2026-03-13",
+        },
+    )
+    assert first_response.status_code == 200
+
+    second_response = client.post(
+        "/api/v1/loads/search",
+        headers=_auth_headers(),
+        json={
+            "external_call_id": "call-search-state",
+            "equipment_type": "Step Deck",
+            "origin": "Dallas",
+            "destination": "Atlanta",
+        },
+    )
+    assert second_response.status_code == 200
+    assert second_response.json()["matches"] == []
+
+    login_response = client.post("/dashboard/login", json={"password": "test-api-key"})
+    assert login_response.status_code == 200
+
+    dashboard_response = client.get("/dashboard/data")
+    assert dashboard_response.status_code == 200
+
+    recent_call = next(
+        item for item in dashboard_response.json()["recent_calls"] if item["external_call_id"] == "call-search-state"
+    )
+    assert recent_call["matched_loads_count"] == 0
+    assert recent_call["selected_load"] is None
 
 
 def test_negotiation_accepts_after_second_counter(client):
@@ -225,6 +277,30 @@ def test_negotiation_rejects_after_round_three(client):
     assert final_response.json()["attempts_remaining"] == 0
 
 
+def test_negotiation_rejects_pending_transfer_load(client):
+    complete_response = client.post(
+        "/api/v1/calls/complete",
+        headers=_auth_headers(),
+        json={
+            "external_call_id": "call-pending-transfer",
+            "load_id": "ACM-1001",
+            "final_rate": 2300,
+            "outcome": "agreed",
+            "sentiment": "positive",
+        },
+    )
+    assert complete_response.status_code == 200
+    assert complete_response.json()["load_status"] == "pending_transfer"
+
+    negotiation_response = client.post(
+        "/api/v1/loads/negotiate",
+        headers=_auth_headers(),
+        json={"external_call_id": "call-second-carrier", "load_id": "ACM-1001", "carrier_offer": 2400},
+    )
+    assert negotiation_response.status_code == 409
+    assert negotiation_response.json()["detail"] == "Load is no longer open for negotiation."
+
+
 def test_complete_call_marks_load_pending_transfer_and_updates_metrics(client):
     verify_client = FakeFMCSAClient()
     client.app.dependency_overrides[get_fmcsa_client] = lambda: verify_client
@@ -261,6 +337,60 @@ def test_complete_call_marks_load_pending_transfer_and_updates_metrics(client):
     assert metrics["transfers_ready"] == 1
     assert metrics["outcome_counts"]["agreed"] == 1
     assert metrics["sentiment_counts"]["positive"] == 1
+
+    login_response = client.post("/dashboard/login", json={"password": "test-api-key"})
+    assert login_response.status_code == 200
+
+    dashboard_response = client.get("/dashboard/data")
+    assert dashboard_response.status_code == 200
+    dashboard = dashboard_response.json()
+    assert dashboard["summary"]["agreements"] == 1
+    assert dashboard["summary"]["outcome_counts"]["agreed"] == 1
+    assert dashboard["summary"]["sentiment_counts"]["positive"] == 1
+
+
+def test_fmcsa_authority_status_rules():
+    client = FMCSAClient(settings=type("SettingsStub", (), {"app_api_key": "x"})())
+
+    active_status = client._normalize_authority_status({"authorityStatus": "Active"})
+    assert active_status == {"key": "active", "label": "Active"}
+    assert client._eligibility_reasons(
+        carrier_details={"allowedToOperate": "Y", "outOfService": "N"},
+        basics_records=[],
+        authority_status=active_status,
+    ) == []
+
+    code_active_status = client._normalize_authority_status({"authorityStatus": "A"})
+    assert code_active_status == {"key": "active", "label": "Active"}
+    assert client._eligibility_reasons(
+        carrier_details={"allowedToOperate": "Y", "outOfService": "N"},
+        basics_records=[],
+        authority_status=code_active_status,
+    ) == []
+
+    inactive_status = client._normalize_authority_status({"authorityStatus": "Inactive"})
+    assert inactive_status == {"key": "inactive", "label": "Inactive"}
+    assert client._eligibility_reasons(
+        carrier_details={"allowedToOperate": "Y", "outOfService": "N"},
+        basics_records=[],
+        authority_status=inactive_status,
+    ) == ["Authority status is inactive."]
+
+    code_inactive_status = client._normalize_authority_status({"authorityStatus": "I"})
+    assert code_inactive_status == {"key": "inactive", "label": "Inactive"}
+    assert client._eligibility_reasons(
+        carrier_details={"allowedToOperate": "Y", "outOfService": "N"},
+        basics_records=[],
+        authority_status=code_inactive_status,
+    ) == ["Authority status is inactive."]
+
+    missing_status = client._normalize_authority_status({})
+    assert missing_status == {"key": None, "label": None}
+    assert client._eligibility_reasons(
+        carrier_details={"allowedToOperate": "Y", "outOfService": "N"},
+        basics_records=[],
+        authority_status=missing_status,
+    ) == ["Authority status could not be confirmed."]
 
 
 def test_dashboard_data_includes_recent_calls_sorted_by_recency(client):

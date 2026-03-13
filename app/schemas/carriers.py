@@ -4,11 +4,18 @@ from pydantic import BaseModel, Field, field_validator
 class VerifyCarrierRequest(BaseModel):
     external_call_id: str
     mc_number: str = Field(min_length=1)
-    
+
     @field_validator("mc_number", mode="before")
     @classmethod
     def coerce_mc_number(cls, v):
-        return str(v)
+        if v is None:
+            raise ValueError("MC number is required.")
+
+        normalized = str(v).strip()
+        if not normalized or normalized.lower() == "null":
+            raise ValueError("MC number is required.")
+
+        return normalized
 
 
 class VerifyCarrierResponse(BaseModel):

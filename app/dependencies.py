@@ -1,20 +1,10 @@
 from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security.api_key import APIKeyHeader
-from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
-from app.db.session import get_db
 from app.services.fmcsa import FMCSAClient
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
-
-
-def get_db_session(db: Session = Depends(get_db)) -> Session:
-    return db
-
-
-def get_app_settings(settings: Settings = Depends(get_settings)) -> Settings:
-    return settings
 
 
 def require_api_key(

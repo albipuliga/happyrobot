@@ -1,18 +1,10 @@
-from collections import defaultdict
-
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.call_session import CallSession
 from app.models.load import Load
 from app.schemas.metrics import MetricsSummaryResponse
-
-
-def _group_counts(rows: list[tuple[str | None, int]]) -> dict[str, int]:
-    grouped: dict[str, int] = defaultdict(int)
-    for label, count in rows:
-        grouped[label or "unknown"] += count
-    return dict(grouped)
+from app.services.common import group_counts
 
 
 def build_metrics_summary(db: Session) -> MetricsSummaryResponse:
@@ -22,10 +14,10 @@ def build_metrics_summary(db: Session) -> MetricsSummaryResponse:
     agreements = db.query(func.count(CallSession.id)).filter(CallSession.agreed_rate.is_not(None)).scalar() or 0
     transfers_ready = db.query(func.count(Load.id)).filter(Load.status == "pending_transfer").scalar() or 0
 
-    outcome_counts = _group_counts(
+    outcome_counts = group_counts(
         db.query(CallSession.outcome, func.count(CallSession.id)).group_by(CallSession.outcome).all()
     )
-    sentiment_counts = _group_counts(
+    sentiment_counts = group_counts(
         db.query(CallSession.sentiment, func.count(CallSession.id)).group_by(CallSession.sentiment).all()
     )
 
