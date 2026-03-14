@@ -86,6 +86,24 @@ To deploy from scratch, use the Railway dashboard with these manual steps:
    - `GET /health`
    - `GET /dashboard`
 
+## Negotiation & Pricing
+
+Each load has a `loadboard_rate` (initial asking price) and a `max_rate` (made up maximum price; in real life, this would be defined by the broker). The broker counter-offers escalate through the gap between these two values, rounded to the nearest $25:
+
+| Round | Broker counter-offer |
+|-------|----------------------|
+| 1 | `loadboard_rate + 50% of gap` |
+| 2 | `loadboard_rate + 80% of gap` |
+| 3+ | `max_rate` |
+
+A carrier's offer is **accepted** if it falls at or below the current round's allowed rate, which triggers a transfer to a human sales rep. If the carrier hasn't accepted after the maximum number of rounds (default 3, configurable via `NEGOTIATION_MAX_COUNTER_ROUNDS`), the negotiation is **rejected**. Once a load reaches `pending_transfer` status, further negotiation attempts return `409 Conflict`.
+
+**Example** (`loadboard_rate=$2200`, `max_rate=$2500`, gap=$300):
+
+1. Carrier offers $2700 — countered at $2350
+2. Carrier offers $2400 — countered at $2450
+3. Carrier accepts $2450 — accepted, transfer initiated
+
 ## API Endpoints
 
 - `POST /api/v1/carriers/verify`
