@@ -79,6 +79,7 @@ To deploy from scratch, use the Railway dashboard with these manual steps:
    - `NEGOTIATION_MAX_COUNTER_ROUNDS`
    - `FMCSA_API_KEY`
    - `FMCSA_BASE_URL`
+   - `SESSION_HTTPS_ONLY` — set to `true` so session cookies require HTTPS (Railway handles TLS termination)
    - `DATABASE_URL` - Example: if the database service is named `Postgres`, use `${{Postgres.DATABASE_URL}}`.
 6. Generate a public domain for the app service from `Settings > Networking > Public Networking`.
 7. Verify the deployment with:

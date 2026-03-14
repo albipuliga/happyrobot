@@ -32,6 +32,7 @@ class Settings(BaseSettings):
         default="happyrobot_dashboard_session",
         alias="DASHBOARD_SESSION_COOKIE_NAME",
     )
+    session_https_only: bool = Field(default=False, alias="SESSION_HTTPS_ONLY")
 
 
 @lru_cache

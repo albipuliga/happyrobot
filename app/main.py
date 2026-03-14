@@ -28,7 +28,7 @@ app.add_middleware(
     session_cookie=settings.dashboard_session_cookie_name,
     max_age=settings.dashboard_session_max_age_seconds,
     same_site="lax",
-    https_only=False,
+    https_only=settings.session_https_only,
 )
 app.mount(
     "/dashboard/assets",
