@@ -18,13 +18,16 @@ Backend API for the HappyRobot FDE take-home challenge. It verifies inbound carr
    uv sync --dev
    ```
 2. Copy `.env.example` to `.env` and adjust the values for your environment.
+   ```bash
+   cp .env.example .env
+   ```
 3. Run the API:
    ```bash
    uv run uvicorn app.main:app --reload
    ```
 
 The database is created automatically on startup and seeded from [`data/loads.json`](/Users/albertopuliga/Desktop/Coding/happyrobot/data/loads.json).
-In Railway, the app should point at a managed PostgreSQL service. SQLite remains useful locally for quick runs and tests.
+In Railway, the app points at a managed PostgreSQL service. SQLite is used locally for quick development and testing.
 
 ## Configuration
 
@@ -34,10 +37,10 @@ All `/api/v1/*` endpoints require an `X-API-Key` header. Generate a strong value
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-Runtime settings are centralized in [`.env.example`](/Users/albertopuliga/Desktop/Coding/happyrobot/.env.example), including the database URL, FMCSA settings, request timeout, and negotiation round limit.
+Set your `APP_API_KEY` value in local `.env` and in Railway service variables.
+The dashboard password reuses that same `APP_API_KEY` value.
 
-Set your real `APP_API_KEY` value in local `.env` and in Railway service variables.
-The dashboard password reuses that same `APP_API_KEY` value and stores access in a signed browser session cookie.
+Runtime settings are centralized in [`.env.example`](/Users/albertopuliga/Desktop/Coding/happyrobot/.env.example), including the database URL, FMCSA settings, request timeout, and negotiation round limit.
 
 ## Docker
 
@@ -54,20 +57,33 @@ docker run --rm -p 8000:8000 --env-file .env happyrobot
 ```
 
 This starts the API on `http://localhost:8000`.
-The image also declares a Docker `HEALTHCHECK` that probes `GET /health`.
 
 ## Railway
 
-Set these variables in Railway before deploying:
+### My Deployment
 
-- `APP_API_KEY`: generated secret used for the `X-API-Key` header
-- `REQUEST_TIMEOUT_SECONDS`: FMCSA request timeout
-- `NEGOTIATION_MAX_COUNTER_ROUNDS`: max number of counter-offers before rejection
-- `FMCSA_API_KEY`: FMCSA API key
-- `FMCSA_BASE_URL`: `https://mobile.fmcsa.dot.gov/qc/services`
-- `DATABASE_URL`: set this on `happyrobot-app` to `${{Postgres.DATABASE_URL}}` after adding a Railway Postgres service named `Postgres`
+- Health endpoint: [https://happyrobot-app-production.up.railway.app/health](https://happyrobot-app-production.up.railway.app/health)
+- Dashboard: [https://happyrobot-app-production.up.railway.app/dashboard](https://happyrobot-app-production.up.railway.app/dashboard)
 
-Railway deploy health checks are configured in [`railway.toml`](/Users/albertopuliga/Desktop/Coding/happyrobot/railway.toml) to probe `GET /health` with a 30 second timeout.
+### Reproducing This Deployment
+
+To deploy from scratch, use the Railway dashboard with these manual steps:
+
+1. Create a new Railway project.
+2. Add an application service from this repository.
+   Railway can deploy the repo directly from GitHub, or you can create an empty service and upload the code with the Railway CLI. Because this repo includes a [`Dockerfile`](/Users/albertopuliga/Desktop/Coding/happyrobot/Dockerfile), Railway will build and run the container from that file.
+3. Add a PostgreSQL service to the same project.
+4. Open the app service variables and set:
+   - `APP_API_KEY`
+   - `REQUEST_TIMEOUT_SECONDS`
+   - `NEGOTIATION_MAX_COUNTER_ROUNDS`
+   - `FMCSA_API_KEY`
+   - `FMCSA_BASE_URL`
+   - `DATABASE_URL` - Example: if the database service is named `Postgres`, use `${{Postgres.DATABASE_URL}}`.
+6. Generate a public domain for the app service from `Settings > Networking > Public Networking`.
+7. Verify the deployment with:
+   - `GET /health`
+   - `GET /dashboard`
 
 ## API Endpoints
 
@@ -77,6 +93,13 @@ Railway deploy health checks are configured in [`railway.toml`](/Users/albertopu
 - `POST /api/v1/calls/complete`
 - `GET /api/v1/metrics/summary`
 - `GET /health`
+- `GET /dashboard`
+- `GET /dashboard/data`
+- `POST /dashboard/login`
+
+## Dashboard Demo Data
+
+Use [`scripts/populate_dashboard.py`](/Users/albertopuliga/Desktop/Coding/happyrobot/scripts/populate_dashboard.py) to generate realistic demo traffic for the local dashboard (requires the app to be running and an `APP_API_KEY` value in your environment).
 
 ## Test
 
