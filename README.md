@@ -26,8 +26,10 @@ Backend API for the HappyRobot FDE take-home challenge. It verifies inbound carr
    uv run uvicorn app.main:app --reload --reload-dir app
    ```
 
-The database is created automatically on startup and seeded from [`data/loads.json`](/Users/albertopuliga/Desktop/Coding/happyrobot/data/loads.json).
-In Railway, the app points at a managed PostgreSQL service. SQLite is used locally for quick development and testing.
+**A few notes:**
+- Since the FMCSA API is only available in the US, when running the API locally, **you need to use a VPN from the US to access it**. This is not a problem in Railway, since it's deployed in US East.
+- The database is created automatically on startup and seeded from [`data/loads.json`](/Users/albertopuliga/Desktop/Coding/happyrobot/data/loads.json).
+- In Railway, the app points at a managed PostgreSQL service. SQLite is used locally for quick development and testing.
 
 ## Configuration
 
