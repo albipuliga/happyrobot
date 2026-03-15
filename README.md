@@ -23,7 +23,7 @@ Backend API for the HappyRobot FDE take-home challenge. It verifies inbound carr
    ```
 3. Run the API:
    ```bash
-   uv run uvicorn app.main:app --reload
+   uv run uvicorn app.main:app --reload --reload-dir app
    ```
 
 The database is created automatically on startup and seeded from [`data/loads.json`](/Users/albertopuliga/Desktop/Coding/happyrobot/data/loads.json).
