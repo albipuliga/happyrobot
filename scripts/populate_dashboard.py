@@ -32,7 +32,7 @@ def main() -> int:
     prefix = f"seed-{uuid4().hex[:8]}"
     headers = {"Accept": "application/json", "Content-Type": "application/json", "X-API-Key": api_key}
 
-    with httpx.Client(base_url=BASE_URL, headers=headers, follow_redirects=True, timeout=10.0) as c:
+    with httpx.Client(base_url=BASE_URL, headers=headers, follow_redirects=True, timeout=30.0) as c:
         api_get(c, "/health")
 
         # --- 1. Booked after 2 negotiation rounds (positive) ---

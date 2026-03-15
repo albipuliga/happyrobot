@@ -56,6 +56,12 @@ Run the container:
 docker run --rm -p 8000:8000 --env-file .env happyrobot
 ```
 
+To seed the dashboard with demo data on startup, add `-e SEED=true`:
+
+```bash
+docker run --rm -p 8000:8000 --env-file .env -e SEED=true happyrobot
+```
+
 This starts the API on `http://localhost:8000`.
 
 ## Railway
