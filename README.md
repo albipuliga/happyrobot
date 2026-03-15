@@ -109,8 +109,9 @@ A carrier's offer is **accepted** if it falls at or below the current round's al
 **Example** (`loadboard_rate=$2200`, `max_rate=$2500`, gap=$300):
 
 1. Carrier offers $2700 — countered at $2350
-2. Carrier offers $2400 — countered at $2440
-3. Carrier accepts $2440 — accepted, transfer initiated
+2. Carrier offers $2400 — accepted at $2400, because it is already below the broker's next allowed counter of $2440
+
+If a carrier's current offer is already at or below the broker's next scheduled concession, the broker accepts immediately.
 
 ## API Endpoints
 

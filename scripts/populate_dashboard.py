@@ -46,12 +46,11 @@ def main() -> int:
         r1 = api_post(c, "/api/v1/loads/negotiate", {"external_call_id": cid, "load_id": lid, "carrier_offer": rate + 500})
         r2 = api_post(c, "/api/v1/loads/negotiate", {"external_call_id": cid, "load_id": lid, "carrier_offer": int(r1["broker_offer"]) + 75})
         accepted_rate = int(r2["broker_offer"])
-        api_post(c, "/api/v1/loads/negotiate", {"external_call_id": cid, "load_id": lid, "carrier_offer": accepted_rate})
         api_post(c, "/api/v1/calls/complete", {
             "external_call_id": cid, "mc_number": "MC-245901", "load_id": lid,
             "final_rate": accepted_rate, "outcome": "booked", "sentiment": "positive",
-            "transcript_excerpt": "Dispatcher pushed back twice, accepted the second counter, and requested transfer to finish setup.",
-            "extracted_fields": {"scenario": "booked_after_two_counters", "negotiation_style": "firm_but_fair"},
+            "transcript_excerpt": "Dispatcher pushed back once, then accepted when the carrier's next offer landed inside the broker's concession range.",
+            "extracted_fields": {"scenario": "booked_after_two_rounds", "negotiation_style": "firm_but_fair"},
         })
         print(f"  1. Booked after 2 rounds @ ${accepted_rate}")
 

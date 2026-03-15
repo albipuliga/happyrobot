@@ -230,7 +230,7 @@ def test_search_loads_clears_selected_load_when_no_match(client):
     assert recent_call["selected_load"] is None
 
 
-def test_negotiation_accepts_after_second_counter(client):
+def test_negotiation_accepts_when_offer_is_below_next_counter(client):
     first = client.post(
         "/api/v1/loads/negotiate",
         headers=_auth_headers(),
@@ -246,17 +246,10 @@ def test_negotiation_accepts_after_second_counter(client):
         json={"external_call_id": "call-4", "load_id": "ACM-1001", "carrier_offer": 2425},
     )
     assert second.status_code == 200
-    assert second.json()["decision"] == "countered"
-    assert second.json()["broker_offer"] == 2440
-
-    third = client.post(
-        "/api/v1/loads/negotiate",
-        headers=_auth_headers(),
-        json={"external_call_id": "call-4", "load_id": "ACM-1001", "carrier_offer": 2440},
-    )
-    assert third.status_code == 200
-    assert third.json()["decision"] == "accepted"
-    assert third.json()["transfer_ready"] is True
+    assert second.json()["decision"] == "accepted"
+    assert second.json()["broker_offer"] == 2425
+    assert second.json()["round"] == 2
+    assert second.json()["transfer_ready"] is True
 
 
 def test_negotiation_rounds_counter_offers_to_nearest_integer(client):
@@ -275,17 +268,23 @@ def test_negotiation_rounds_counter_offers_to_nearest_integer(client):
         json={"external_call_id": "call-decimal-1", "load_id": "ACM-1011", "carrier_offer": 2200},
     )
     assert second.status_code == 200
-    assert second.json()["decision"] == "countered"
-    assert second.json()["broker_offer"] == 2260
+    assert second.json()["decision"] == "accepted"
+    assert second.json()["broker_offer"] == 2200
+    assert second.json()["round"] == 2
 
-    third = client.post(
+
+def test_negotiation_accepts_first_offer_when_it_is_below_first_counter(client):
+    response = client.post(
         "/api/v1/loads/negotiate",
         headers=_auth_headers(),
-        json={"external_call_id": "call-decimal-1", "load_id": "ACM-1011", "carrier_offer": 2260},
+        json={"external_call_id": "call-early-accept", "load_id": "ACM-1001", "carrier_offer": 2300},
     )
-    assert third.status_code == 200
-    assert third.json()["decision"] == "accepted"
-    assert third.json()["broker_offer"] == 2260
+
+    assert response.status_code == 200
+    assert response.json()["decision"] == "accepted"
+    assert response.json()["broker_offer"] == 2300
+    assert response.json()["round"] == 1
+    assert response.json()["transfer_ready"] is True
 
 
 def test_negotiation_rejects_after_round_three(client):
@@ -562,10 +561,10 @@ def test_dashboard_data_includes_recent_calls_sorted_by_recency(client):
             "external_call_id": "call-dashboard-1",
             "mc_number": "10101",
             "load_id": "ACM-1001",
-            "final_rate": 2440,
+            "final_rate": 2425,
             "outcome": "booked",
             "sentiment": "positive",
-            "transcript_excerpt": "Carrier accepted after the second counter.",
+            "transcript_excerpt": "Carrier accepted once the offer fell within the broker's next concession.",
             "extracted_fields": {"dispatcher": "Mila"},
         },
     )
@@ -632,9 +631,9 @@ def test_dashboard_data_includes_recent_calls_sorted_by_recency(client):
     earlier_call = recent_calls[1]
     assert earlier_call["selected_load"]["load_id"] == "ACM-1001"
     assert earlier_call["selected_load"]["status"] == "pending_transfer"
-    assert earlier_call["agreed_rate"] == 2440
+    assert earlier_call["agreed_rate"] == 2425
     assert earlier_call["negotiation_rounds"] == 2
-    assert earlier_call["transcript_excerpt"] == "Carrier accepted after the second counter."
+    assert earlier_call["transcript_excerpt"] == "Carrier accepted once the offer fell within the broker's next concession."
     assert earlier_call["verification_tone"] == "positive"
     assert earlier_call["outcome_tone"] == "positive"
     assert earlier_call["sentiment_tone"] == "positive"

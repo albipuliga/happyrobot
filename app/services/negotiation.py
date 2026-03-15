@@ -91,6 +91,30 @@ def negotiate_rate(db: Session, payload: NegotiateRequest) -> NegotiateResponse:
 
     next_round = rounds_completed + 1
     counter = _counter_offer(load, next_round)
+
+    # If the carrier is already at or below the broker's next scheduled concession,
+    # accept now instead of countering upward to a worse price for the broker.
+    if payload.carrier_offer <= counter:
+        event = NegotiationEvent(
+            call_session_id=call_session.id,
+            load_id=load.id,
+            round_number=next_round,
+            carrier_offer=payload.carrier_offer,
+            broker_counter=payload.carrier_offer,
+            decision=NegotiationDecision.ACCEPTED.value,
+        )
+        call_session.agreed_rate = payload.carrier_offer
+        db.add_all([call_session, event])
+        db.commit()
+        return NegotiateResponse(
+            decision=NegotiationDecision.ACCEPTED,
+            broker_offer=payload.carrier_offer,
+            round=next_round,
+            attempts_remaining=max(0, max_counter_rounds - next_round),
+            transfer_ready=True,
+            summary_for_agent=f"Accept the offer at ${_format_money(payload.carrier_offer)} and move to transfer.",
+        )
+
     event = NegotiationEvent(
         call_session_id=call_session.id,
         load_id=load.id,
