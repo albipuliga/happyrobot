@@ -96,7 +96,7 @@ To deploy from scratch, use the Railway dashboard with these manual steps:
 
 ## Negotiation & Pricing
 
-Each load has a `loadboard_rate` (initial asking price) and a `max_rate` (made up maximum price; in real life, this would be defined by the broker). The broker counter-offers escalate through the gap between these two values, rounded to the nearest $25:
+Each load has a `loadboard_rate` (initial asking price) and a `max_rate` (made up maximum price; in real life, this would be defined by the broker). The broker counter-offers escalate through the gap between these two values and are rounded to the nearest whole dollar:
 
 | Round | Broker counter-offer |
 |-------|----------------------|
@@ -109,8 +109,14 @@ A carrier's offer is **accepted** if it falls at or below the current round's al
 **Example** (`loadboard_rate=$2200`, `max_rate=$2500`, gap=$300):
 
 1. Carrier offers $2700 — countered at $2350
-2. Carrier offers $2400 — countered at $2450
-3. Carrier accepts $2450 — accepted, transfer initiated
+2. Carrier offers $2400 — countered at $2440
+3. Carrier accepts $2440 — accepted, transfer initiated
+
+**Rounding example** (`loadboard_rate=$2000`, `max_rate=$2325`, gap=$325):
+
+1. Round 1 raw value = `$2162.5`, rounded counter = `$2163`
+2. Round 2 raw value = `$2260.0`, rounded counter = `$2260`
+3. Round 3+ = `$2325`
 
 ## API Endpoints
 

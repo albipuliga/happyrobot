@@ -9,17 +9,21 @@ from app.state_vocab import LoadStatus, NegotiationDecision
 from app.services.calls import get_or_create_call_session
 
 
-def _round_to_nearest_25(value: float) -> int:
-    return int(round(value / 25.0) * 25)
+def _round_money(value: float) -> int:
+    return int(float(value) + 0.5)
+
+
+def _format_money(value: int) -> str:
+    return str(value)
 
 
 def _counter_offer(load: Load, round_number: int) -> int:
     gap = load.max_rate - load.loadboard_rate
     if round_number == 1:
-        return _round_to_nearest_25(load.loadboard_rate + (gap * 0.5))
+        return _round_money(load.loadboard_rate + (gap * 0.5))
     if round_number == 2:
-        return _round_to_nearest_25(load.loadboard_rate + (gap * 0.8))
-    return load.max_rate
+        return _round_money(load.loadboard_rate + (gap * 0.8))
+    return _round_money(load.max_rate)
 
 
 def negotiate_rate(db: Session, payload: NegotiateRequest) -> NegotiateResponse:
@@ -62,7 +66,7 @@ def negotiate_rate(db: Session, payload: NegotiateRequest) -> NegotiateResponse:
             round=accepted_round,
             attempts_remaining=max(0, max_counter_rounds - rounds_completed),
             transfer_ready=True,
-            summary_for_agent=f"Accept the offer at ${payload.carrier_offer} and move to transfer.",
+            summary_for_agent=f"Accept the offer at ${_format_money(payload.carrier_offer)} and move to transfer.",
         )
 
     if rounds_completed >= max_counter_rounds:
@@ -71,18 +75,18 @@ def negotiate_rate(db: Session, payload: NegotiateRequest) -> NegotiateResponse:
             load_id=load.id,
             round_number=max_counter_rounds,
             carrier_offer=payload.carrier_offer,
-            broker_counter=load.max_rate,
+            broker_counter=_round_money(load.max_rate),
             decision=NegotiationDecision.REJECTED.value,
         )
         db.add_all([call_session, event])
         db.commit()
         return NegotiateResponse(
             decision=NegotiationDecision.REJECTED,
-            broker_offer=load.max_rate,
+            broker_offer=_round_money(load.max_rate),
             round=max_counter_rounds,
             attempts_remaining=0,
             transfer_ready=False,
-            summary_for_agent=f"Politely decline. The final approved rate was ${load.max_rate} and the carrier stayed above it.",
+            summary_for_agent=f"Politely decline. The final approved rate was ${_format_money(load.max_rate)} and the carrier stayed above it.",
         )
 
     next_round = rounds_completed + 1
@@ -104,5 +108,5 @@ def negotiate_rate(db: Session, payload: NegotiateRequest) -> NegotiateResponse:
         round=next_round,
         attempts_remaining=max(0, max_counter_rounds - next_round),
         transfer_ready=False,
-        summary_for_agent=f"Counter at ${counter}. This is round {next_round} of {max_counter_rounds}.",
+        summary_for_agent=f"Counter at ${_format_money(counter)}. This is round {next_round} of {max_counter_rounds}.",
     )

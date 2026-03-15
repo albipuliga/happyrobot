@@ -65,7 +65,7 @@ class CallCompleteRequest(BaseModel):
     def coerce_final_rate(cls, v):
         if v is None or v == "" or v == "null":
             return None
-        return int(v)
+        return int(float(v) + 0.5)
 
     @field_validator("outcome", mode="before")
     @classmethod

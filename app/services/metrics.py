@@ -37,6 +37,7 @@ def build_metrics_summary(db: Session) -> MetricsSummaryResponse:
     )
     deltas = [agreed_rate - listed_rate for agreed_rate, listed_rate in agreed_delta_rows if agreed_rate is not None and listed_rate is not None]
     average_delta = round(sum(deltas) / len(deltas), 2) if deltas else None
+    total_delta = sum(deltas) if deltas else 0
 
     verification_pass_rate = round((verified_calls / total_calls) * 100, 2) if total_calls else 0.0
 
@@ -50,5 +51,5 @@ def build_metrics_summary(db: Session) -> MetricsSummaryResponse:
         outcome_counts=outcome_counts,
         sentiment_counts=sentiment_counts,
         average_agreed_vs_listed_delta=average_delta,
-        total_agreed_vs_listed_delta=sum(deltas),
+        total_agreed_vs_listed_delta=total_delta,
     )

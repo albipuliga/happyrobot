@@ -641,10 +641,8 @@ textarea {
 .pagination {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 14px;
-  padding: 14px 16px 0;
+  gap: 10px;
+  margin-left: auto;
 }
 
 .pagination:empty {
