@@ -58,7 +58,11 @@ Run the container:
 docker run --rm -p 8000:8000 --env-file .env happyrobot
 ```
 
-To seed the dashboard with demo data on startup, add `-e SEED=true`:
+The app always creates the database on startup and seeds the base load data from `data/loads.json` when the loads table is empty.
+
+To seed the dashboard with extra demo traffic on startup, set `SEED=true` in the container environment. You can pass it inline with `docker run` or include it in your `.env` file or deployment platform environment variables.
+
+Example using an inline flag:
 
 ```bash
 docker run --rm -p 8000:8000 --env-file .env -e SEED=true happyrobot
@@ -88,6 +92,7 @@ To deploy from scratch, use the Railway dashboard with these manual steps:
    - `FMCSA_API_KEY`
    - `FMCSA_BASE_URL`
    - `SESSION_HTTPS_ONLY` — set to `true` so session cookies require HTTPS (Railway handles TLS termination)
+   - `SEED` — optional; set to `true` or `1` only if you want demo dashboard traffic populated on startup
    - `DATABASE_URL` - Example: if the database service is named `Postgres`, use `${{Postgres.DATABASE_URL}}`.
 6. Generate a public domain for the app service from `Settings > Networking > Public Networking`.
 7. Verify the deployment with:
@@ -98,11 +103,11 @@ To deploy from scratch, use the Railway dashboard with these manual steps:
 
 Each load has a `loadboard_rate` (initial asking price) and a `max_rate` (made up maximum price; in real life, this would be defined by the broker). The broker counter-offers escalate through the gap between these two values and are rounded to the nearest whole dollar:
 
-| Round | Broker counter-offer |
-|-------|----------------------|
-| 1 | `loadboard_rate + 50% of gap` |
-| 2 | `loadboard_rate + 80% of gap` |
-| 3+ | `max_rate` |
+| Round | Broker counter-offer          |
+| ----- | ----------------------------- |
+| 1     | `loadboard_rate + 50% of gap` |
+| 2     | `loadboard_rate + 80% of gap` |
+| 3+    | `max_rate`                    |
 
 A carrier's offer is **accepted** if it falls at or below the current round's allowed rate, which triggers a transfer to a human sales rep. If the carrier hasn't accepted after the maximum number of rounds (default 3, configurable via `NEGOTIATION_MAX_COUNTER_ROUNDS`), the negotiation is **rejected**. Once a load reaches `pending_transfer` status, further negotiation attempts return `409 Conflict`.
 
