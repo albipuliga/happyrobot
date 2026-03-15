@@ -376,10 +376,6 @@ async function fetchDashboardData({ manual = false } = {}) {
     return;
   }
 
-  if (!manual) {
-    state.page = 0;
-  }
-
   state.isFetching = true;
   elements.refreshButton.disabled = true;
   elements.fetchStatus.textContent = "Refreshing...";
