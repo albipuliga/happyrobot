@@ -112,12 +112,6 @@ A carrier's offer is **accepted** if it falls at or below the current round's al
 2. Carrier offers $2400 — countered at $2440
 3. Carrier accepts $2440 — accepted, transfer initiated
 
-**Rounding example** (`loadboard_rate=$2000`, `max_rate=$2325`, gap=$325):
-
-1. Round 1 raw value = `$2162.5`, rounded counter = `$2163`
-2. Round 2 raw value = `$2260.0`, rounded counter = `$2260`
-3. Round 3+ = `$2325`
-
 ## API Endpoints
 
 - `POST /api/v1/carriers/verify`
