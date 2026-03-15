@@ -6,6 +6,7 @@ const state = {
   data: null,
   page: 0,
   pageSize: 9,
+  expandedCallIds: new Set(),
 };
 
 const elements = {
@@ -33,6 +34,10 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function toDomSafeId(value) {
+  return String(value).replace(/[^a-zA-Z0-9_-]/g, "-");
 }
 
 function formatCurrency(value) {
@@ -226,6 +231,7 @@ function renderDelta(summary) {
 
 function renderCalls(recentCalls) {
   if (!recentCalls || recentCalls.length === 0) {
+    state.expandedCallIds.clear();
     elements.callsTableBody.innerHTML = `
       <tr>
         <td class="empty-state" colspan="7">No calls have been recorded yet. Complete a carrier flow to populate this table.</td>
@@ -235,15 +241,16 @@ function renderCalls(recentCalls) {
   }
 
   elements.callsTableBody.innerHTML = recentCalls
-    .map((call, index) => {
+    .map((call) => {
       const verificationLabel =
         call.verification_passed === null ? "Pending" : call.verification_passed ? "Verified" : "Failed";
       const rate = call.agreed_rate === null ? "N/A" : formatCurrency(call.agreed_rate);
       const loadSummary = call.selected_load
         ? `${call.selected_load.load_id} · ${call.selected_load.origin} to ${call.selected_load.destination}`
         : "No load selected";
-      const detailRowId = `detail-row-${index}`;
-      const detailButtonId = `detail-button-${index}`;
+      const detailKey = toDomSafeId(call.external_call_id);
+      const detailRowId = `detail-row-${detailKey}`;
+      const isExpanded = state.expandedCallIds.has(call.external_call_id);
 
       const dealClass = call.agreed_rate !== null ? " call-row--deal" : "";
       const verificationMuted = call.verification_passed === null ? " muted" : "";
@@ -251,7 +258,14 @@ function renderCalls(recentCalls) {
       const sentimentMuted = !call.sentiment || call.sentiment === "unknown" ? " muted" : "";
 
       return `
-        <tr class="call-row${dealClass}" aria-expanded="false" data-detail="${detailRowId}" role="button" tabindex="0">
+        <tr
+          class="call-row${dealClass}"
+          aria-expanded="${isExpanded}"
+          data-call-id="${escapeHtml(call.external_call_id)}"
+          data-detail="${detailRowId}"
+          role="button"
+          tabindex="0"
+        >
           <td>
             <div class="call-identity">
               <span class="call-id">${escapeHtml(call.external_call_id)}</span>
@@ -265,7 +279,7 @@ function renderCalls(recentCalls) {
           <td>${escapeHtml(loadSummary)}</td>
           <td>${escapeHtml(formatDateTime(call.ended_at || call.started_at))}</td>
         </tr>
-        <tr id="${detailRowId}" class="detail-row" hidden>
+        <tr id="${detailRowId}" class="detail-row" ${isExpanded ? "" : "hidden"}>
           <td class="detail-cell" colspan="7">
             <div class="detail-card">
               <section class="detail-block">
@@ -317,8 +331,17 @@ function renderCalls(recentCalls) {
     function toggle() {
       const detailRow = document.getElementById(row.dataset.detail);
       const isExpanded = row.getAttribute("aria-expanded") === "true";
-      row.setAttribute("aria-expanded", String(!isExpanded));
-      detailRow.hidden = isExpanded;
+      const nextExpanded = !isExpanded;
+      const callId = row.dataset.callId;
+
+      row.setAttribute("aria-expanded", String(nextExpanded));
+      detailRow.hidden = !nextExpanded;
+
+      if (nextExpanded) {
+        state.expandedCallIds.add(callId);
+      } else {
+        state.expandedCallIds.delete(callId);
+      }
     }
 
     row.addEventListener("click", toggle);
