@@ -80,7 +80,6 @@ function sentenceCase(value) {
 function renderKpis(summary) {
   const totalCalls = summary.total_calls ?? 0;
   const agreements = summary.agreements ?? 0;
-  const avgDelta = summary.average_agreed_vs_listed_delta;
 
   const agreementsSubtext =
     totalCalls > 0
@@ -93,13 +92,6 @@ function renderKpis(summary) {
       label: "Agreements",
       value: formatNumber(agreements),
       subtext: agreementsSubtext,
-    },
-    {
-      label: "Net rate delta",
-      value: formatCurrency(summary.total_agreed_vs_listed_delta),
-      subtext: avgDelta !== null && avgDelta !== undefined
-        ? `Avg per deal: ${formatCurrency(avgDelta)}`
-        : "No deals yet",
     },
   ];
 
